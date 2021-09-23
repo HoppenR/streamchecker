@@ -1,0 +1,98 @@
+package streamchecker
+
+import (
+	"encoding/json"
+	"io/ioutil"
+	"net/http"
+	"net/url"
+	"time"
+)
+
+type TwitchStreams struct {
+	Data []TwitchStreamData `json:"data"`
+}
+
+type TwitchStreamData struct {
+	GameName    string    `json:"game_name"`
+	Language    string    `json:"language"`
+	StartedAt   time.Time `json:"started_at"`
+	Title       string    `json:"title"`
+	Type        string    `json:"type"`
+	UserName    string    `json:"user_name"`
+	ViewerCount int       `json:"viewer_count"`
+}
+
+func (lhs *TwitchStreamData) GetName() string {
+	return lhs.UserName
+}
+
+func (lhs *TwitchStreamData) GetService() string {
+	return "twitch"
+}
+
+func (lhs *TwitchStreams) update(rhs *TwitchStreams) {
+	lhs.Data = append(lhs.Data, rhs.Data...)
+}
+
+func (ts *TwitchStreams) Less(i, j int) bool {
+	return ts.Data[i].ViewerCount < ts.Data[j].ViewerCount
+}
+
+func (ts *TwitchStreams) Len() int {
+	return len(ts.Data)
+}
+
+func (ts *TwitchStreams) Swap(i, j int) {
+	ts.Data[i], ts.Data[j] = ts.Data[j], ts.Data[i]
+}
+
+func getLiveTwitchStreamsPart(token, clientID string, twitchFollows *TwitchFollows, first int) ([]byte, error) {
+	req, err := http.NewRequest("GET", "https://api.twitch.tv/helix/streams", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Authorization", "Bearer "+token)
+	req.Header.Add("Client-Id", clientID)
+	query := make(url.Values)
+	for i := first; i != twitchFollows.Total && i < (first+100); i++ {
+		query.Add("user_id", twitchFollows.Data[i].ToID)
+	}
+	query.Add("first", "100")
+	req.URL.RawQuery = query.Encode()
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	jsonBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	return jsonBody, nil
+}
+
+// Takes follow IDs and returns which ones are live
+func GetLiveTwitchStreams(token, clientID string, twitchFollows *TwitchFollows) (*TwitchStreams, error) {
+	jsonBody, err := getLiveTwitchStreamsPart(token, clientID, twitchFollows, 0)
+	if err != nil {
+		return nil, err
+	}
+	twitchStreams := new(TwitchStreams)
+	err = json.Unmarshal(jsonBody, &twitchStreams)
+	if err != nil {
+		return nil, err
+	}
+	for i := 100; i < twitchFollows.Total; i += 100 {
+		jsonBody, err = getLiveTwitchStreamsPart(token, clientID, twitchFollows, i)
+		if err != nil {
+			return nil, err
+		}
+		tmpChannels := new(TwitchStreams)
+		err = json.Unmarshal(jsonBody, &tmpChannels)
+		if err != nil {
+			return nil, err
+		}
+		twitchStreams.update(tmpChannels)
+	}
+	return twitchStreams, nil
+}
