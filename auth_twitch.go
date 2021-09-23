@@ -12,24 +12,32 @@ import (
 )
 
 type AppAccessToken struct {
-	AccessToken string `json:"access_token"`
-	ExpiresIn   int    `json:"expires_in"`
-	TokenType   string `json:"token_type"`
-	folderName  string
+	AccessToken  string `json:"access_token"`
+	clientID     string
+	clientSecret string
+	folderName   string
 }
 
 func (aat *AppAccessToken) SetCacheFolder(name string) {
 	aat.folderName = name
 }
 
-func (aat *AppAccessToken) GetToken(clientID, clientSecret string) error {
+func (aat *AppAccessToken) SetClientID(clientID string) {
+	aat.clientID = clientID
+}
+
+func (aat *AppAccessToken) SetClientSecret(clientSecret string) {
+	aat.clientSecret = clientSecret
+}
+
+func (aat *AppAccessToken) GetToken() error {
 	req, err := http.NewRequest("POST", "https://id.twitch.tv/oauth2/token", nil)
 	if err != nil {
 		return err
 	}
-	req.Header.Add("Client-Id", clientID)
+	req.Header.Add("Client-Id", aat.clientID)
 	query := make(url.Values)
-	query.Add("client_secret", clientSecret)
+	query.Add("client_secret", aat.clientSecret)
 	query.Add("grant_type", "client_credentials")
 	req.URL.RawQuery = query.Encode()
 	resp, err := http.DefaultClient.Do(req)
@@ -46,7 +54,7 @@ func (aat *AppAccessToken) GetToken(clientID, clientSecret string) error {
 	if err != nil {
 		return err
 	}
-	aat = tokenResp
+	aat.AccessToken = tokenResp.AccessToken
 	return nil
 }
 

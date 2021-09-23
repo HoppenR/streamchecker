@@ -14,16 +14,16 @@ import (
 )
 
 type BGClient struct {
-	streams      *Streams
-	critical     []string
-	clientID     string
-	clientSecret string
-	lives        map[string]bool
-	mutex        sync.Mutex
-	onLive       func(string, bool)
-	srv          http.Server
-	timer        time.Duration
-	token        string
+	clientID string
+	critical []string
+	lives    map[string]bool
+	mutex    sync.Mutex
+	onLive   func(string, bool)
+	srv      http.Server
+	streams  *Streams
+	timer    time.Duration
+	token    string
+	userID   string
 
 	ForceCheck chan bool
 	Stop       chan bool
@@ -50,8 +50,8 @@ func (bg *BGClient) SetClientID(clientID string) {
 	bg.clientID = clientID
 }
 
-func (bg *BGClient) SetClientSecret(clientSecret string) {
-	bg.clientSecret = clientSecret
+func (bg *BGClient) SetUserID(userID string) {
+	bg.userID = userID
 }
 
 func (bg *BGClient) SetCritical(critical string) *BGClient {
@@ -121,7 +121,7 @@ func (bg *BGClient) check(notify bool) error {
 	)
 	newLiveUsers = make(map[string]bool)
 	bg.mutex.Lock()
-	bg.streams, err = GetLiveUsers(bg.token, bg.clientID, bg.clientSecret)
+	bg.streams, err = GetLiveUsers(bg.token, bg.clientID, bg.userID)
 	// TODO: if StatusCode == 501 request new token and save to bg.Token
 	if err != nil {
 		return err
