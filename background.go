@@ -77,7 +77,7 @@ func (bg *BGClient) Run() error {
 	fmt.Println("Ctrl-C to exit")
 	// Http server
 	if bg.srv.Addr != "" {
-		go bg.ServeData()
+		go bg.serveData()
 	} else {
 		fmt.Fprintln(os.Stderr, "Not serving data")
 	}
@@ -121,7 +121,7 @@ func (bg *BGClient) check(notify bool) error {
 	)
 	newLiveUsers = make(map[string]bool)
 	bg.mutex.Lock()
-	bg.streams, err = GetLiveUsers(bg.token, bg.clientID, bg.userID)
+	bg.streams, err = GetLiveStreams(bg.token, bg.clientID, bg.userID)
 	// TODO: if StatusCode == 501 request new token and save to bg.Token
 	if err != nil {
 		return err
@@ -151,7 +151,7 @@ func (bg *BGClient) check(notify bool) error {
 	return nil
 }
 
-func (bg *BGClient) ServeData() {
+func (bg *BGClient) serveData() {
 	bg.srv.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if accept := r.Header.Get("Content-Type"); strings.Contains(accept, "application/octet-stream") {
 			switch r.Method {

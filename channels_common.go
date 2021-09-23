@@ -5,17 +5,17 @@ type Streams struct {
 	Twitch *TwitchStreams
 }
 
-func GetLiveUsers(token, clientID, userID string) (*Streams, error) {
+func GetLiveStreams(token, clientID, userID string) (*Streams, error) {
 	streams := &Streams{
 		Strims: new(StrimsStreams),
 		Twitch: new(TwitchStreams),
 	}
 	// Twitch
-	twitchFollows, err := GetTwitchFollows(token, clientID, userID)
+	follows, err := GetTwitchFollows(token, clientID, userID)
 	if err != nil {
 		return nil, err
 	}
-	streams.Twitch, err = GetLiveTwitchStreams(token, clientID, twitchFollows)
+	streams.Twitch, err = GetLiveTwitchStreams(token, clientID, follows)
 	if err != nil {
 		return nil, err
 	}
