@@ -16,9 +16,9 @@ import (
 type BGClient struct {
 	clientID string
 	critical []string
-	lives    map[string]bool
+	lives    map[string]StreamData
 	mutex    sync.Mutex
-	onLive   func(string, bool)
+	onLive   func(StreamData, bool)
 	srv      http.Server
 	streams  *Streams
 	timer    time.Duration
@@ -29,9 +29,14 @@ type BGClient struct {
 	Stop       chan bool
 }
 
+type StreamData interface {
+	GetName() string
+	GetService() string
+}
+
 func NewBG() *BGClient {
 	return &BGClient{
-		lives:      make(map[string]bool),
+		lives:      make(map[string]StreamData),
 		ForceCheck: make(chan bool),
 	}
 }
@@ -41,7 +46,7 @@ func (bg *BGClient) SetAddress(port string) *BGClient {
 	return bg
 }
 
-func (bg *BGClient) SetCallback(f func(string, bool)) *BGClient {
+func (bg *BGClient) SetCallback(f func(StreamData, bool)) *BGClient {
 	bg.onLive = f
 	return bg
 }
@@ -116,38 +121,41 @@ func (bg *BGClient) Run() error {
 
 func (bg *BGClient) check(notify bool) error {
 	var (
-		newLiveUsers map[string]bool
-		err          error
+		newStreamData map[string]StreamData
+		err           error
 	)
-	newLiveUsers = make(map[string]bool)
+	newStreamData = make(map[string]StreamData)
 	bg.mutex.Lock()
 	bg.streams, err = GetLiveStreams(bg.token, bg.clientID, bg.userID)
 	// TODO: if StatusCode == 501 request new token and save to bg.Token
 	if err != nil {
 		return err
 	}
-	for _, v := range bg.streams.Twitch.Data {
-		newLiveUsers[v.UserName] = true
+	for i, v := range bg.streams.Twitch.Data {
+		newStreamData[strings.ToLower(v.UserName)] = &bg.streams.Twitch.Data[i]
+	}
+	for i, v := range bg.streams.Strims.Data {
+		newStreamData[strings.ToLower(v.Channel)] = &bg.streams.Strims.Data[i]
 	}
 	bg.mutex.Unlock()
 	if notify {
-		for user := range newLiveUsers {
+		for user, data := range newStreamData {
 			if _, ok := bg.lives[user]; !ok {
 				if bg.onLive == nil {
 					return errors.New("Callback function is not set")
 				}
 				isCritical := false
 				for _, c := range bg.critical {
-					if strings.EqualFold(c, user) {
+					if strings.EqualFold(c, data.GetName()) {
 						isCritical = true
 						break
 					}
 				}
-				bg.onLive(user, isCritical)
+				bg.onLive(data, isCritical)
 			}
 		}
 	}
-	bg.lives = newLiveUsers
+	bg.lives = newStreamData
 	return nil
 }
 
