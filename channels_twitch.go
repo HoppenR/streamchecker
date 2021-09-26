@@ -27,7 +27,7 @@ func (lhs *TwitchStreamData) GetName() string {
 }
 
 func (lhs *TwitchStreamData) GetService() string {
-	return "twitch"
+	return "twitch-followed"
 }
 
 func (lhs *TwitchStreams) update(rhs *TwitchStreams) {
