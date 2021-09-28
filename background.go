@@ -14,16 +14,17 @@ import (
 )
 
 type BGClient struct {
-	clientID string
-	critical []string
-	lives    map[string]StreamData
-	mutex    sync.Mutex
-	onLive   func(StreamData, bool)
-	srv      http.Server
-	streams  *Streams
-	timer    time.Duration
-	token    string
-	userID   string
+	clientID  string
+	critical  []string
+	lives     map[string]StreamData
+	mutex     sync.Mutex
+	onLive    func(StreamData, bool)
+	onOffline func(StreamData)
+	srv       http.Server
+	streams   *Streams
+	timer     time.Duration
+	token     string
+	userID    string
 
 	ForceCheck chan bool
 	Stop       chan bool
@@ -46,17 +47,24 @@ func (bg *BGClient) SetAddress(port string) *BGClient {
 	return bg
 }
 
-func (bg *BGClient) SetCallback(f func(StreamData, bool)) *BGClient {
+func (bg *BGClient) SetLiveCallback(f func(StreamData, bool)) *BGClient {
 	bg.onLive = f
 	return bg
 }
 
-func (bg *BGClient) SetClientID(clientID string) {
-	bg.clientID = clientID
+func (bg *BGClient) SetOfflineCallback(f func(StreamData)) *BGClient {
+	bg.onOffline = f
+	return bg
 }
 
-func (bg *BGClient) SetUserID(userID string) {
+func (bg *BGClient) SetClientID(clientID string) *BGClient {
+	bg.clientID = clientID
+	return bg
+}
+
+func (bg *BGClient) SetUserID(userID string) *BGClient {
 	bg.userID = userID
+	return bg
 }
 
 func (bg *BGClient) SetCritical(critical string) *BGClient {
@@ -142,7 +150,7 @@ func (bg *BGClient) check(notify bool) error {
 		for user, data := range newStreamData {
 			if _, ok := bg.lives[user]; !ok {
 				if bg.onLive == nil {
-					return errors.New("Callback function is not set")
+					return errors.New("Live callback function is not set")
 				}
 				isCritical := false
 				for _, c := range bg.critical {
@@ -152,6 +160,14 @@ func (bg *BGClient) check(notify bool) error {
 					}
 				}
 				bg.onLive(data, isCritical)
+			}
+		}
+		for user, data := range bg.lives {
+			if _, ok := newStreamData[user]; !ok {
+				if bg.onOffline == nil {
+					return errors.New("Offline callback function is not set")
+				}
+				bg.onOffline(data)
 			}
 		}
 	}
