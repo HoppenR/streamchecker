@@ -49,21 +49,25 @@ func (ad *AuthData) GetCachedData() (*string, *string, error) {
 	if ad.cacheFolder == "" {
 		return nil, nil, errors.New("Cache folder not set")
 	}
+	// Read as much as possible and save any errors for tail end return
+	var retErr error
 	if ad.accessToken == "" {
 		token, err := ad.readCache("cachedtoken")
 		if err != nil {
-			return nil, nil, err
+			retErr = err
+		} else {
+			ad.accessToken = string(token)
 		}
-		ad.accessToken = string(token)
 	}
 	if ad.userID == "" {
 		userID, err := ad.readCache("cacheduserid")
 		if err != nil {
-			return nil, nil, err
+			retErr = err
+		} else {
+			ad.userID = string(userID)
 		}
-		ad.userID = string(userID)
 	}
-	return &ad.accessToken, &ad.userID, nil
+	return &ad.accessToken, &ad.userID, retErr
 }
 
 func (ad *AuthData) GetToken() (*string, error) {
