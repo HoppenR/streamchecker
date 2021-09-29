@@ -22,6 +22,15 @@ type TwitchStreamData struct {
 	ViewerCount int       `json:"viewer_count"`
 }
 
+type UserDatas struct {
+	Data []UserData `json:"data"`
+}
+
+type UserData struct {
+	ID    string `json:"id"`
+	Login string `json:"login"`
+}
+
 func (lhs *TwitchStreamData) GetName() string {
 	return lhs.UserName
 }
