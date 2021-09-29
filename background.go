@@ -150,7 +150,7 @@ func (bg *BGClient) check(notify bool) error {
 		for user, data := range newStreamData {
 			if _, ok := bg.lives[user]; !ok {
 				if bg.onLive == nil {
-					return errors.New("Live callback function is not set")
+					return errors.New("live callback function is not set")
 				}
 				isCritical := false
 				for _, c := range bg.critical {
@@ -165,7 +165,7 @@ func (bg *BGClient) check(notify bool) error {
 		for user, data := range bg.lives {
 			if _, ok := newStreamData[user]; !ok {
 				if bg.onOffline == nil {
-					return errors.New("Offline callback function is not set")
+					return errors.New("offline callback function is not set")
 				}
 				bg.onOffline(data)
 			}

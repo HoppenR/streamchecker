@@ -47,7 +47,7 @@ func (ad *AuthData) SetClientSecret(clientSecret string) {
 
 func (ad *AuthData) GetCachedData() (*string, *string, error) {
 	if ad.cacheFolder == "" {
-		return nil, nil, errors.New("Cache folder not set")
+		return nil, nil, errors.New("cache folder not set")
 	}
 	// Read as much as possible and save any errors for tail end return
 	var retErr error
@@ -92,7 +92,7 @@ func (ad *AuthData) GetUserID(userName string) (*string, error) {
 
 func (ad *AuthData) SaveCache() error {
 	if ad.cacheFolder == "" {
-		return errors.New("Cache folder not set")
+		return errors.New("cache folder not set")
 	}
 	err := ad.writeCache("cachedtoken", ad.accessToken)
 	if err != nil {
@@ -116,7 +116,7 @@ func (ad *AuthData) writeCache(fileName, data string) error {
 		return err
 	}
 	if written == 0 {
-		return errors.New("No content written to " + fileName + " file")
+		return errors.New("no content written to " + fileName + " file")
 	}
 	return nil
 }
@@ -171,7 +171,7 @@ func (ad *AuthData) fetchUserID(userName string) error {
 	userDatas := new(UserDatas)
 	err = json.Unmarshal(jsonBody, &userDatas)
 	if len(userDatas.Data) != 1 {
-		return errors.New("Did not get 1 user result")
+		return errors.New("did not get 1 user result")
 	}
 	ad.userID = userDatas.Data[0].ID
 	return nil
@@ -189,7 +189,7 @@ func (ad *AuthData) readCache(fileName string) ([]byte, error) {
 		return nil, err
 	}
 	if read == 0 {
-		return nil, errors.New("No content read from " + fileName + " file")
+		return nil, errors.New("no content read from " + fileName + " file")
 	}
 	return bytes.TrimRight(buffer, "\x00\n"), nil
 }
