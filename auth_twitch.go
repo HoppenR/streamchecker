@@ -13,6 +13,7 @@ import (
 
 type AuthData struct {
 	accessToken  string
+	useCache     bool
 	cacheFolder  string
 	clientID     string
 	clientSecret string
@@ -45,9 +46,16 @@ func (ad *AuthData) SetClientSecret(clientSecret string) {
 	ad.clientSecret = clientSecret
 }
 
+func (ad *AuthData) SetUseCache(useCache bool) {
+	ad.useCache = useCache
+}
+
 func (ad *AuthData) GetCachedData() (*string, *string, error) {
 	if ad.cacheFolder == "" {
 		return nil, nil, errors.New("cache folder not set")
+	}
+	if !ad.useCache {
+		return nil, nil, errors.New("useCache is set to false")
 	}
 	// Read as much as possible and save any errors for tail end return
 	var retErr error
