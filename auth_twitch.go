@@ -24,6 +24,12 @@ type appAccessToken struct {
 	AccessToken string `json:"access_token"`
 }
 
+func NewAuthData() *AuthData {
+	return &AuthData{
+		useCache: true,
+	}
+}
+
 func (ad *AuthData) SetCacheFolder(name string) error {
 	cachedir, err := os.UserCacheDir()
 	if err != nil {
