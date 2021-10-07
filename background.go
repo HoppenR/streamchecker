@@ -2,7 +2,6 @@ package streamchecker
 
 import (
 	"encoding/gob"
-	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -129,10 +128,10 @@ func (bg *BGClient) Run() error {
 
 func (bg *BGClient) check(notify bool) error {
 	var (
-		newStreamData map[string]StreamData
-		err           error
+		newLives map[string]StreamData
+		err      error
 	)
-	newStreamData = make(map[string]StreamData)
+	newLives = make(map[string]StreamData)
 	bg.mutex.Lock()
 	bg.streams, err = GetLiveStreams(bg.token, bg.clientID, bg.userID)
 	// TODO: if StatusCode == 501 request new token and save to bg.Token
@@ -140,17 +139,17 @@ func (bg *BGClient) check(notify bool) error {
 		return err
 	}
 	for i, v := range bg.streams.Twitch.Data {
-		newStreamData[strings.ToLower(v.UserName)] = &bg.streams.Twitch.Data[i]
+		newLives[strings.ToLower(v.UserName)] = &bg.streams.Twitch.Data[i]
 	}
 	for i, v := range bg.streams.Strims.Data {
-		newStreamData[strings.ToLower(v.Channel)] = &bg.streams.Strims.Data[i]
+		newLives[strings.ToLower(v.Channel)] = &bg.streams.Strims.Data[i]
 	}
 	bg.mutex.Unlock()
 	if notify {
-		for user, data := range newStreamData {
+		for user, data := range newLives {
 			if _, ok := bg.lives[user]; !ok {
 				if bg.onLive == nil {
-					return errors.New("live callback function is not set")
+					break
 				}
 				isCritical := false
 				for _, c := range bg.critical {
@@ -163,15 +162,15 @@ func (bg *BGClient) check(notify bool) error {
 			}
 		}
 		for user, data := range bg.lives {
-			if _, ok := newStreamData[user]; !ok {
+			if _, ok := newLives[user]; !ok {
 				if bg.onOffline == nil {
-					return errors.New("offline callback function is not set")
+					break
 				}
 				bg.onOffline(data)
 			}
 		}
 	}
-	bg.lives = newStreamData
+	bg.lives = newLives
 	return nil
 }
 
