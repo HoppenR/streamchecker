@@ -9,28 +9,45 @@ To get twitch streams it requires a twitch app access token that in turn
 requires an API key (`client ID`) and its secret (`client secret`). As well as a
 user name to get streams for.
 
-# Simple example without caching:
+# Simple example:
 
 ```go
+package main
+
+import (
+	"fmt"
+	"time"
+
+	sc "github.com/HoppenR/streamchecker"
+)
+
+// Simple example without caching and without serving data locally:
 var (
 	ClientID     string
 	ClientSecret string
 )
 
 func main() {
-	ad := sc.NewAuthData()
-	ad.SetClientID(ClientID)
-	ad.SetClientSecret(ClientSecret)
-	token, _ := ad.GetToken()
-	userID, _ := ad.GetUserID("MyUsername")
+	ad := new(sc.AuthData)
+	ad.SetClientID(ClientID).
+		SetClientSecret(ClientSecret).
+		SetUserName("MyUsername")
+
 	sc.NewBG().
-		SetClientID(ClientID).
+		SetAuthData(ad).
 		SetInterval(5 * time.Minute).
 		SetLiveCallback(func(sd sc.StreamData, _ bool) {
-			fmt.Printf("%s just went live on %s\n", sd.GetName(), sd.GetService())
+			switch sd.GetService() {
+			case "twitch-followed":
+				fmt.Printf("%s just went live on twitch\n", sd.GetName())
+			default:
+				fmt.Printf(
+					"%s is being watched on strims on platform %s\n",
+					sd.GetName(),
+					sd.GetService(),
+				)
+			}
 		}).
-		SetToken(*token).
-		SetUserID(*userID).
 		Run()
 }
 ```
