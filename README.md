@@ -15,39 +15,39 @@ user name to get streams for.
 package main
 
 import (
-	"fmt"
-	"time"
+    "fmt"
+    "time"
 
-	sc "github.com/HoppenR/streamchecker"
+    sc "github.com/HoppenR/streamchecker"
 )
 
 // Simple example without caching and without serving data locally:
 var (
-	ClientID     string
-	ClientSecret string
+    ClientID     string
+    ClientSecret string
 )
 
 func main() {
-	ad := new(sc.AuthData)
-	ad.SetClientID(ClientID).
-		SetClientSecret(ClientSecret).
-		SetUserName("MyUsername")
+    ad := new(sc.AuthData)
+    ad.SetClientID(ClientID).
+        SetClientSecret(ClientSecret).
+        SetUserName("MyUsername")
 
-	sc.NewBG().
-		SetAuthData(ad).
-		SetInterval(5 * time.Minute).
-		SetLiveCallback(func(sd sc.StreamData, _ bool) {
-			switch sd.GetService() {
-			case "twitch-followed":
-				fmt.Printf("%s just went live on twitch\n", sd.GetName())
-			default:
-				fmt.Printf(
-					"%s is being watched on strims on platform %s\n",
-					sd.GetName(),
-					sd.GetService(),
-				)
-			}
-		}).
-		Run()
+    sc.NewBG().
+        SetAuthData(ad).
+        SetInterval(5 * time.Minute).
+        SetLiveCallback(func(sd sc.StreamData, _ bool) {
+            switch sd.GetService() {
+            case "twitch-followed":
+                fmt.Printf("%s just went live on twitch\n", sd.GetName())
+            default:
+                fmt.Printf(
+                    "%s is being watched on strims on platform %s\n",
+                    sd.GetName(),
+                    sd.GetService(),
+                )
+            }
+        }).
+        Run()
 }
 ```
