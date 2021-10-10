@@ -13,21 +13,15 @@ import (
 
 type AuthData struct {
 	accessToken  string
-	useCache     bool
 	cacheFolder  string
 	clientID     string
 	clientSecret string
 	userID       string
+	userName     string
 }
 
 type appAccessToken struct {
 	AccessToken string `json:"access_token"`
-}
-
-func NewAuthData() *AuthData {
-	return &AuthData{
-		useCache: true,
-	}
 }
 
 func (ad *AuthData) SetCacheFolder(name string) error {
@@ -44,24 +38,30 @@ func (ad *AuthData) SetCacheFolder(name string) error {
 	return nil
 }
 
-func (ad *AuthData) SetClientID(clientID string) {
-	ad.clientID = clientID
-}
-
-func (ad *AuthData) SetClientSecret(clientSecret string) {
-	ad.clientSecret = clientSecret
-}
-
-func (ad *AuthData) SetUseCache(useCache bool) {
-	ad.useCache = useCache
-}
-
-func (ad *AuthData) GetCachedData() (*string, *string, error) {
-	if ad.cacheFolder == "" {
-		return nil, nil, errors.New("cache folder not set")
+func (ad *AuthData) SetClientID(clientID string) *AuthData {
+	if ad.clientID == "" {
+		ad.clientID = clientID
 	}
-	if !ad.useCache {
-		return nil, nil, errors.New("useCache is set to false")
+	return ad
+}
+
+func (ad *AuthData) SetClientSecret(clientSecret string) *AuthData {
+	if ad.clientSecret == "" {
+		ad.clientSecret = clientSecret
+	}
+	return ad
+}
+
+func (ad *AuthData) SetUserName(userName string) *AuthData {
+	if ad.userName == "" {
+		ad.userName = userName
+	}
+	return ad
+}
+
+func (ad *AuthData) GetCachedData() error {
+	if ad.cacheFolder == "" {
+		return errors.New("cache folder not set")
 	}
 	// Read as much as possible and save any errors for tail end return
 	var retErr error
@@ -81,40 +81,44 @@ func (ad *AuthData) GetCachedData() (*string, *string, error) {
 			ad.userID = string(userID)
 		}
 	}
-	return &ad.accessToken, &ad.userID, retErr
+	return retErr
 }
 
-func (ad *AuthData) GetToken() (*string, error) {
+func (ad *AuthData) getToken() error {
 	if ad.accessToken == "" {
 		err := ad.fetchToken()
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
-	return &ad.accessToken, nil
+	return nil
 }
 
-func (ad *AuthData) GetUserID(userName string) (*string, error) {
+func (ad *AuthData) getUserID() error {
 	if ad.userID == "" {
-		err := ad.fetchUserID(userName)
+		err := ad.fetchUserID()
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
-	return &ad.userID, nil
+	return nil
 }
 
 func (ad *AuthData) SaveCache() error {
 	if ad.cacheFolder == "" {
 		return errors.New("cache folder not set")
 	}
-	err := ad.writeCache("cachedtoken", ad.accessToken)
-	if err != nil {
-		return err
+	if ad.accessToken != "" {
+		err := ad.writeCache("cachedtoken", ad.accessToken)
+		if err != nil {
+			return err
+		}
 	}
-	err = ad.writeCache("cacheduserid", ad.userID)
-	if err != nil {
-		return err
+	if ad.userID != "" {
+		err := ad.writeCache("cacheduserid", ad.userID)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -163,7 +167,7 @@ func (ad *AuthData) fetchToken() error {
 	return nil
 }
 
-func (ad *AuthData) fetchUserID(userName string) error {
+func (ad *AuthData) fetchUserID() error {
 	req, err := http.NewRequest("GET", "https://api.twitch.tv/helix/users", nil)
 	if err != nil {
 		return err
@@ -171,7 +175,7 @@ func (ad *AuthData) fetchUserID(userName string) error {
 	req.Header.Add("Authorization", "Bearer "+ad.accessToken)
 	req.Header.Add("Client-Id", ad.clientID)
 	query := make(url.Values)
-	query.Add("login", userName)
+	query.Add("login", ad.userName)
 	req.URL.RawQuery = query.Encode()
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

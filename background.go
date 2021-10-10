@@ -13,7 +13,7 @@ import (
 )
 
 type BGClient struct {
-	clientID  string
+	authData  *AuthData
 	critical  []string
 	lives     map[string]StreamData
 	mutex     sync.Mutex
@@ -22,8 +22,7 @@ type BGClient struct {
 	srv       http.Server
 	streams   *Streams
 	timer     time.Duration
-	token     string
-	userID    string
+	userName  string
 
 	ForceCheck chan bool
 	Stop       chan bool
@@ -46,6 +45,11 @@ func (bg *BGClient) SetAddress(port string) *BGClient {
 	return bg
 }
 
+func (bg *BGClient) SetAuthData(ad *AuthData) *BGClient {
+	bg.authData = ad
+	return bg
+}
+
 func (bg *BGClient) SetLiveCallback(f func(StreamData, bool)) *BGClient {
 	bg.onLive = f
 	return bg
@@ -53,16 +57,6 @@ func (bg *BGClient) SetLiveCallback(f func(StreamData, bool)) *BGClient {
 
 func (bg *BGClient) SetOfflineCallback(f func(StreamData)) *BGClient {
 	bg.onOffline = f
-	return bg
-}
-
-func (bg *BGClient) SetClientID(clientID string) *BGClient {
-	bg.clientID = clientID
-	return bg
-}
-
-func (bg *BGClient) SetUserID(userID string) *BGClient {
-	bg.userID = userID
 	return bg
 }
 
@@ -76,13 +70,16 @@ func (bg *BGClient) SetInterval(timer time.Duration) *BGClient {
 	return bg
 }
 
-func (bg *BGClient) SetToken(token string) *BGClient {
-	bg.token = token
-	return bg
-}
-
 func (bg *BGClient) Run() error {
-	err := bg.check(false)
+	err := bg.authData.getToken()
+	if err != nil {
+		return err
+	}
+	err = bg.authData.getUserID()
+	if err != nil {
+		return err
+	}
+	err = bg.check(false)
 	if err != nil {
 		return err
 	}
@@ -133,7 +130,7 @@ func (bg *BGClient) check(notify bool) error {
 	)
 	newLives = make(map[string]StreamData)
 	bg.mutex.Lock()
-	bg.streams, err = GetLiveStreams(bg.token, bg.clientID, bg.userID)
+	bg.streams, err = GetLiveStreams(bg.authData.accessToken, bg.authData.clientID, bg.authData.userID)
 	// TODO: if StatusCode == 501 request new token and save to bg.Token
 	if err != nil {
 		return err
