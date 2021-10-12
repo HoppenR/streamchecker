@@ -17,7 +17,7 @@ type BGClient struct {
 	critical  []string
 	lives     map[string]StreamData
 	mutex     sync.Mutex
-	onLive    func(StreamData, bool)
+	onLive    func(StreamData, bool) bool
 	onOffline func(StreamData)
 	srv       http.Server
 	streams   *Streams
@@ -41,7 +41,9 @@ func NewBG() *BGClient {
 }
 
 func (bg *BGClient) SetAddress(port string) *BGClient {
-	bg.srv.Addr = "127.0.0.1" + port
+	if port != "" {
+		bg.srv.Addr = "127.0.0.1" + port
+	}
 	return bg
 }
 
@@ -50,7 +52,11 @@ func (bg *BGClient) SetAuthData(ad *AuthData) *BGClient {
 	return bg
 }
 
-func (bg *BGClient) SetLiveCallback(f func(StreamData, bool)) *BGClient {
+// Sets a function to call whenever a stream goes online
+// If false is returned the stream will not be treated as live and future
+// callbacks with the same data may happen. Useful for setting conditions such
+// as minimum viewership before handling it in the callback.
+func (bg *BGClient) SetLiveCallback(f func(StreamData, bool) bool) *BGClient {
 	bg.onLive = f
 	return bg
 }
@@ -141,6 +147,7 @@ func (bg *BGClient) check(notify bool) error {
 	for i, v := range bg.streams.Strims.Data {
 		newLives[strings.ToLower(v.Channel)] = &bg.streams.Strims.Data[i]
 	}
+	var toDelete []string
 	bg.mutex.Unlock()
 	if notify {
 		for user, data := range newLives {
@@ -155,7 +162,9 @@ func (bg *BGClient) check(notify bool) error {
 						break
 					}
 				}
-				bg.onLive(data, isCritical)
+				if !bg.onLive(data, isCritical) {
+					toDelete = append(toDelete, user)
+				}
 			}
 		}
 		for user, data := range bg.lives {
@@ -166,6 +175,9 @@ func (bg *BGClient) check(notify bool) error {
 				bg.onOffline(data)
 			}
 		}
+	}
+	for _, v := range toDelete {
+		delete(newLives, v)
 	}
 	bg.lives = newLives
 	return nil
