@@ -14,11 +14,10 @@ import (
 
 type BGClient struct {
 	authData  *AuthData
-	critical  []string
 	follows   *twitchFollows
 	lives     map[string]StreamData
 	mutex     sync.Mutex
-	onLive    func(StreamData, bool) bool
+	onLive    func(StreamData) bool
 	onOffline func(StreamData)
 	srv       http.Server
 	streams   *Streams
@@ -57,18 +56,13 @@ func (bg *BGClient) SetAuthData(ad *AuthData) *BGClient {
 // If false is returned the stream will not be treated as live and future
 // callbacks with the same data may happen. Useful for setting conditions such
 // as minimum viewership before handling it in the callback.
-func (bg *BGClient) SetLiveCallback(f func(StreamData, bool) bool) *BGClient {
+func (bg *BGClient) SetLiveCallback(f func(StreamData) bool) *BGClient {
 	bg.onLive = f
 	return bg
 }
 
 func (bg *BGClient) SetOfflineCallback(f func(StreamData)) *BGClient {
 	bg.onOffline = f
-	return bg
-}
-
-func (bg *BGClient) SetCritical(critical string) *BGClient {
-	bg.critical = strings.Split(critical, ",")
 	return bg
 }
 
@@ -156,14 +150,7 @@ func (bg *BGClient) check(refreshFollows bool) error {
 				if bg.onLive == nil {
 					break
 				}
-				isCritical := false
-				for _, c := range bg.critical {
-					if strings.EqualFold(c, data.GetName()) {
-						isCritical = true
-						break
-					}
-				}
-				if !bg.onLive(data, isCritical) {
+				if !bg.onLive(data) {
 					toDelete = append(toDelete, user)
 				}
 			}
