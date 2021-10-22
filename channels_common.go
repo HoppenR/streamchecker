@@ -5,24 +5,27 @@ type Streams struct {
 	Twitch *TwitchStreams
 }
 
-func GetLiveStreams(token, clientID, userID string) (*Streams, error) {
+func (bg *BGClient) GetLiveStreams(refreshFollows bool) error {
 	streams := &Streams{
 		Strims: new(StrimsStreams),
 		Twitch: new(TwitchStreams),
 	}
+	var err error
 	// Twitch
-	follows, err := GetTwitchFollows(token, clientID, userID)
-	if err != nil {
-		return nil, err
+	if bg.follows == nil || refreshFollows {
+		bg.follows, err = GetTwitchFollows(bg.authData.accessToken, bg.authData.clientID, bg.authData.userID)
+		if err != nil {
+			return err
+		}
 	}
-	streams.Twitch, err = GetLiveTwitchStreams(token, clientID, follows)
+	streams.Twitch, err = GetLiveTwitchStreams(bg.authData.accessToken, bg.authData.clientID, bg.follows)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	// Strims
 	streams.Strims, err = GetLiveStrimsStreams()
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return streams, nil
+	return nil
 }

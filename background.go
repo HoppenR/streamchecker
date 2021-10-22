@@ -15,6 +15,7 @@ import (
 type BGClient struct {
 	authData  *AuthData
 	critical  []string
+	follows   *twitchFollows
 	lives     map[string]StreamData
 	mutex     sync.Mutex
 	onLive    func(StreamData, bool) bool
@@ -112,7 +113,7 @@ func (bg *BGClient) Run() error {
 				return err
 			}
 		case <-tick.C:
-			err = bg.check(true)
+			err = bg.check(false)
 			if err != nil {
 				return err
 			}
@@ -129,15 +130,15 @@ func (bg *BGClient) Run() error {
 	return nil
 }
 
-func (bg *BGClient) check(notify bool) error {
+func (bg *BGClient) check(refreshFollows bool) error {
 	var (
 		newLives map[string]StreamData
 		err      error
 	)
 	newLives = make(map[string]StreamData)
 	bg.mutex.Lock()
-	bg.streams, err = GetLiveStreams(bg.authData.accessToken, bg.authData.clientID, bg.authData.userID)
-	// TODO: if StatusCode == 501 request new token and save to bg.Token
+	err = bg.GetLiveStreams(refreshFollows)
+	// TODO: if StatusCode == 501 request new token
 	if err != nil {
 		return err
 	}
@@ -147,9 +148,9 @@ func (bg *BGClient) check(notify bool) error {
 	for i, v := range bg.streams.Strims.Data {
 		newLives[strings.ToLower(v.Channel)] = &bg.streams.Strims.Data[i]
 	}
-	var toDelete []string
 	bg.mutex.Unlock()
-	if notify {
+	var toDelete []string
+	if bg.lives != nil {
 		for user, data := range newLives {
 			if _, ok := bg.lives[user]; !ok {
 				if bg.onLive == nil {
