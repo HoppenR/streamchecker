@@ -6,10 +6,6 @@ type Streams struct {
 }
 
 func (bg *BGClient) GetLiveStreams(refreshFollows bool) error {
-	streams := &Streams{
-		Strims: new(StrimsStreams),
-		Twitch: new(TwitchStreams),
-	}
 	var err error
 	// Twitch
 	if bg.follows == nil || refreshFollows {
@@ -18,12 +14,12 @@ func (bg *BGClient) GetLiveStreams(refreshFollows bool) error {
 			return err
 		}
 	}
-	streams.Twitch, err = GetLiveTwitchStreams(bg.authData.accessToken, bg.authData.clientID, bg.follows)
+	bg.streams.Twitch, err = GetLiveTwitchStreams(bg.authData.accessToken, bg.authData.clientID, bg.follows)
 	if err != nil {
 		return err
 	}
 	// Strims
-	streams.Strims, err = GetLiveStrimsStreams()
+	bg.streams.Strims, err = GetLiveStrimsStreams()
 	if err != nil {
 		return err
 	}

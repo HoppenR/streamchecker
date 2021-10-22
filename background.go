@@ -13,16 +13,17 @@ import (
 )
 
 type BGClient struct {
-	authData  *AuthData
-	follows   *twitchFollows
-	lives     map[string]StreamData
-	mutex     sync.Mutex
-	onLive    func(StreamData) bool
-	onOffline func(StreamData)
-	srv       http.Server
-	streams   *Streams
-	timer     time.Duration
-	userName  string
+	authData    *AuthData
+	follows     *twitchFollows
+	lives       map[string]StreamData
+	mutex       sync.Mutex
+	onLive      func(StreamData) bool
+	onOffline   func(StreamData)
+	srv         http.Server
+	streams     *Streams
+	timer       time.Duration
+	userName    string
+	initialized bool
 
 	ForceCheck chan bool
 	Stop       chan bool
@@ -35,8 +36,9 @@ type StreamData interface {
 
 func NewBG() *BGClient {
 	return &BGClient{
-		lives:      make(map[string]StreamData),
 		ForceCheck: make(chan bool),
+		lives:      make(map[string]StreamData),
+		streams:    new(Streams),
 	}
 }
 
@@ -144,7 +146,7 @@ func (bg *BGClient) check(refreshFollows bool) error {
 	}
 	bg.mutex.Unlock()
 	var toDelete []string
-	if bg.lives != nil {
+	if bg.initialized {
 		for user, data := range newLives {
 			if _, ok := bg.lives[user]; !ok {
 				if bg.onLive == nil {
@@ -163,6 +165,8 @@ func (bg *BGClient) check(refreshFollows bool) error {
 				bg.onOffline(data)
 			}
 		}
+	} else {
+		bg.initialized = true
 	}
 	for _, v := range toDelete {
 		delete(newLives, v)
