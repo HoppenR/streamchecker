@@ -51,7 +51,7 @@ func GetLiveStrimsStreams() (*StrimsStreams, error) {
 	if err != nil {
 		return nil, err
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpclient.Do(req)
 	if err != nil {
 		return nil, err
 	}
