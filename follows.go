@@ -40,7 +40,7 @@ func getTwitchFollowsPart(token, clientID, userID, pagCursor string) ([]byte, er
 	query.Add("first", "100")
 	query.Add("after", pagCursor)
 	req.URL.RawQuery = query.Encode()
-	resp, err := httpclient.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("%s: %d", "Got responsecode", resp.StatusCode)
 	}

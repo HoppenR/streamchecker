@@ -12,10 +12,6 @@ import (
 	"time"
 )
 
-var httpclient = http.Client{
-	Timeout: 5 * time.Second,
-}
-
 type BGClient struct {
 	authData    *AuthData
 	follows     *twitchFollows
@@ -201,7 +197,7 @@ func GetLocalServerData(port string) (*Streams, error) {
 		return nil, err
 	}
 	req.Header.Add("Content-Type", "application/octet-stream")
-	resp, err := httpclient.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}

@@ -1,9 +1,11 @@
 package streamchecker
 
 import (
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"time"
 )
 
 type StrimsStreams struct {
@@ -51,7 +53,9 @@ func GetLiveStrimsStreams() (*StrimsStreams, error) {
 	if err != nil {
 		return nil, err
 	}
-	resp, err := httpclient.Do(req)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
 	if err != nil {
 		return nil, err
 	}

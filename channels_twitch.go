@@ -68,7 +68,7 @@ func getLiveTwitchStreamsPart(token, clientID string, twitchFollows *twitchFollo
 	}
 	query.Add("first", "100")
 	req.URL.RawQuery = query.Encode()
-	resp, err := httpclient.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		// TODO: Handle connection reset by peer
 		return nil, err

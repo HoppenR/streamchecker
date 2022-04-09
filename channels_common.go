@@ -1,5 +1,11 @@
 package streamchecker
 
+import (
+	"context"
+	"errors"
+	"log"
+)
+
 type Streams struct {
 	Strims *StrimsStreams
 	Twitch *TwitchStreams
@@ -20,7 +26,9 @@ func (bg *BGClient) GetLiveStreams(refreshFollows bool) error {
 	}
 	// Strims
 	bg.streams.Strims, err = GetLiveStrimsStreams()
-	if err != nil {
+	if errors.Is(err, context.DeadlineExceeded) {
+		log.Println("WARN: Get strims streams timed out, trying again in ", bg.timer.String())
+	} else if err != nil {
 		return err
 	}
 	return nil

@@ -149,7 +149,7 @@ func (ad *AuthData) fetchToken() error {
 	query.Add("client_secret", ad.clientSecret)
 	query.Add("grant_type", "client_credentials")
 	req.URL.RawQuery = query.Encode()
-	resp, err := httpclient.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -177,7 +177,7 @@ func (ad *AuthData) fetchUserID() error {
 	query := make(url.Values)
 	query.Add("login", ad.userName)
 	req.URL.RawQuery = query.Encode()
-	resp, err := httpclient.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
 	}
