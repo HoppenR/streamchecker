@@ -20,16 +20,22 @@ func (bg *BGClient) GetLiveStreams(refreshFollows bool) error {
 			return err
 		}
 	}
-	bg.streams.Twitch, err = GetLiveTwitchStreams(bg.authData.accessToken, bg.authData.clientID, bg.follows)
-	if err != nil {
+	newTwitchStreams, err := GetLiveTwitchStreams(bg.authData.accessToken, bg.authData.clientID, bg.follows)
+	if errors.Is(err, context.DeadlineExceeded) {
+		log.Println("WARN: Get twitch streams timed out, trying again in ", bg.timer.String())
+	} else if err != nil {
 		return err
+	} else {
+		bg.streams.Twitch = newTwitchStreams
 	}
 	// Strims
-	bg.streams.Strims, err = GetLiveStrimsStreams()
+	newStrimsStreams, err := GetLiveStrimsStreams()
 	if errors.Is(err, context.DeadlineExceeded) {
 		log.Println("WARN: Get strims streams timed out, trying again in ", bg.timer.String())
 	} else if err != nil {
 		return err
+	} else {
+		bg.streams.Strims = newStrimsStreams
 	}
 	return nil
 }
