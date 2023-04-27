@@ -42,9 +42,9 @@ func NewBG() *BGClient {
 	}
 }
 
-func (bg *BGClient) SetAddress(port string) *BGClient {
-	if port != "" {
-		bg.srv.Addr = "127.0.0.1" + port
+func (bg *BGClient) SetAddress(address string) *BGClient {
+	if address != "" {
+		bg.srv.Addr = address
 	}
 	return bg
 }
@@ -187,12 +187,12 @@ func (bg *BGClient) serveData() {
 	bg.srv.ListenAndServe()
 }
 
-func GetLocalServerData(port string) (*Streams, error) {
+func GetLocalServerData(address string) (*Streams, error) {
 	streams := &Streams{
 		Strims: new(StrimsStreams),
 		Twitch: new(TwitchStreams),
 	}
-	req, err := http.NewRequest("GET", "http://127.0.0.1"+port, nil)
+	req, err := http.NewRequest("GET", "http://" + address, nil)
 	if err != nil {
 		return nil, err
 	}
