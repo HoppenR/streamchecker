@@ -29,7 +29,7 @@ func (lhs *twitchFollows) update(rhs *twitchFollows) {
 }
 
 func getTwitchFollowsPart(token, clientID, userID, pagCursor string) ([]byte, error) {
-	req, err := http.NewRequest("GET", "https://api.twitch.tv/helix/users/follows", nil)
+	req, err := http.NewRequest("GET", "https://api.twitch.tv/helix/streams/followed", nil)
 	if err != nil {
 		return nil, err
 	}
