@@ -15,7 +15,7 @@ func (bg *BGClient) GetLiveStreams(refreshFollows bool) error {
 	var err error
 	// Twitch
 	if bg.follows == nil || refreshFollows {
-		bg.follows, err = GetTwitchFollows(bg.authData.accessToken, bg.authData.clientID, bg.authData.userID)
+		bg.follows, err = GetTwitchFollows(bg.authData.userAccessToken, bg.authData.clientID, bg.authData.userID)
 		if err != nil {
 			return err
 		}

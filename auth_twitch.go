@@ -4,7 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -12,12 +13,13 @@ import (
 )
 
 type AuthData struct {
-	accessToken  string
-	cacheFolder  string
-	clientID     string
-	clientSecret string
-	userID       string
-	userName     string
+	accessToken     string
+	cacheFolder     string
+	clientID        string
+	clientSecret    string
+	userAccessToken string
+	userID          string
+	userName        string
 }
 
 type appAccessToken struct {
@@ -48,6 +50,13 @@ func (ad *AuthData) SetClientID(clientID string) *AuthData {
 func (ad *AuthData) SetClientSecret(clientSecret string) *AuthData {
 	if ad.clientSecret == "" {
 		ad.clientSecret = clientSecret
+	}
+	return ad
+}
+
+func (ad *AuthData) SetUserAccessToken(accessToken string) *AuthData {
+	if ad.clientSecret == "" {
+		ad.userAccessToken = accessToken
 	}
 	return ad
 }
@@ -139,6 +148,21 @@ func (ad *AuthData) writeCache(fileName, data string) error {
 	return nil
 }
 
+func (ad *AuthData) getUserAccessToken() error {
+	req, err := http.NewRequest("GET", "https://id.twitch.tv/oauth2/authorize", nil)
+	if err != nil {
+		return err
+	}
+	query := make(url.Values)
+	query.Add("client_id", ad.clientID)
+	query.Add("redirect_uri", "http://localhost:8269")
+	query.Add("response_type", "token")
+	query.Add("scope", "user:read:follows")
+	req.URL.RawQuery = query.Encode()
+	fmt.Println("Please visit: " + req.URL.String() + "to authorize.")
+	return nil
+}
+
 func (ad *AuthData) fetchToken() error {
 	req, err := http.NewRequest("POST", "https://id.twitch.tv/oauth2/token", nil)
 	if err != nil {
@@ -154,7 +178,7 @@ func (ad *AuthData) fetchToken() error {
 		return err
 	}
 	defer resp.Body.Close()
-	jsonBody, err := ioutil.ReadAll(resp.Body)
+	jsonBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
@@ -182,12 +206,15 @@ func (ad *AuthData) fetchUserID() error {
 		return err
 	}
 	defer resp.Body.Close()
-	jsonBody, err := ioutil.ReadAll(resp.Body)
+	jsonBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
 	userDatas := new(UserDatas)
 	err = json.Unmarshal(jsonBody, &userDatas)
+	if err != nil {
+		return err
+	}
 	if len(userDatas.Data) != 1 {
 		return errors.New("did not get 1 user result")
 	}
@@ -198,10 +225,10 @@ func (ad *AuthData) fetchUserID() error {
 func (ad *AuthData) readCache(fileName string) ([]byte, error) {
 	buffer := make([]byte, 64)
 	tokenfile, err := os.Open(filepath.Join(ad.cacheFolder, fileName))
-	defer tokenfile.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer tokenfile.Close()
 	read, err := tokenfile.Read(buffer)
 	if err != nil {
 		return nil, err

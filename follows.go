@@ -28,12 +28,12 @@ func (lhs *twitchFollows) update(rhs *twitchFollows) {
 	lhs.Pagination = rhs.Pagination
 }
 
-func getTwitchFollowsPart(token, clientID, userID, pagCursor string) ([]byte, error) {
+func getTwitchFollowsPart(userAccessToken, clientID, userID, pagCursor string) ([]byte, error) {
 	req, err := http.NewRequest("GET", "https://api.twitch.tv/helix/streams/followed", nil)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Add("Authorization", "Bearer "+token)
+	req.Header.Add("Authorization", "Bearer "+userAccessToken)
 	req.Header.Add("Client-Id", clientID)
 	query := make(url.Values)
 	query.Add("from_id", userID)
@@ -56,8 +56,8 @@ func getTwitchFollowsPart(token, clientID, userID, pagCursor string) ([]byte, er
 }
 
 // Takes a USER ID and returns all follows
-func GetTwitchFollows(token, clientID, userID string) (*twitchFollows, error) {
-	jsonBody, err := getTwitchFollowsPart(token, clientID, userID, "")
+func GetTwitchFollows(userAccessToken, clientID, userID string) (*twitchFollows, error) {
+	jsonBody, err := getTwitchFollowsPart(userAccessToken, clientID, userID, "")
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func GetTwitchFollows(token, clientID, userID string) (*twitchFollows, error) {
 		return nil, err
 	}
 	for len(follows.Data) != follows.Total {
-		jsonBody, err = getTwitchFollowsPart(token, clientID, userID, follows.Pagination.Cursor)
+		jsonBody, err = getTwitchFollowsPart(userAccessToken, clientID, userID, follows.Pagination.Cursor)
 		if err != nil {
 			return nil, err
 		}
