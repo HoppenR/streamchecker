@@ -3,7 +3,7 @@ package streamchecker
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 )
@@ -60,7 +60,7 @@ func GetLiveStrimsStreams() (*StrimsStreams, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	jsonBody, err := ioutil.ReadAll(resp.Body)
+	jsonBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}

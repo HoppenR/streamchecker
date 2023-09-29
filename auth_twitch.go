@@ -55,7 +55,7 @@ func (ad *AuthData) SetClientSecret(clientSecret string) *AuthData {
 }
 
 func (ad *AuthData) SetUserAccessToken(accessToken string) *AuthData {
-	if ad.clientSecret == "" {
+	if ad.userAccessToken == "" {
 		ad.userAccessToken = accessToken
 	}
 	return ad
@@ -82,6 +82,14 @@ func (ad *AuthData) GetCachedData() error {
 			ad.accessToken = string(token)
 		}
 	}
+	if ad.userAccessToken == "" {
+		userAccessToken, err := ad.readCache("cacheduseraccesstoken")
+		if err != nil {
+			retErr = err
+		} else {
+			ad.userAccessToken = string(userAccessToken)
+		}
+	}
 	if ad.userID == "" {
 		userID, err := ad.readCache("cacheduserid")
 		if err != nil {
@@ -96,6 +104,16 @@ func (ad *AuthData) GetCachedData() error {
 func (ad *AuthData) getToken() error {
 	if ad.accessToken == "" {
 		err := ad.fetchToken()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (ad *AuthData) getUserAccessToken() error {
+	if ad.userAccessToken == "" {
+		err := ad.fetchUserAccessToken()
 		if err != nil {
 			return err
 		}
@@ -134,10 +152,10 @@ func (ad *AuthData) SaveCache() error {
 
 func (ad *AuthData) writeCache(fileName, data string) error {
 	tokenfile, err := os.Create(filepath.Join(ad.cacheFolder, fileName))
-	defer tokenfile.Close()
 	if err != nil {
 		return err
 	}
+	defer tokenfile.Close()
 	written, err := tokenfile.Write([]byte(data))
 	if err != nil {
 		return err
@@ -145,21 +163,6 @@ func (ad *AuthData) writeCache(fileName, data string) error {
 	if written == 0 {
 		return errors.New("no content written to " + fileName + " file")
 	}
-	return nil
-}
-
-func (ad *AuthData) getUserAccessToken() error {
-	req, err := http.NewRequest("GET", "https://id.twitch.tv/oauth2/authorize", nil)
-	if err != nil {
-		return err
-	}
-	query := make(url.Values)
-	query.Add("client_id", ad.clientID)
-	query.Add("redirect_uri", "http://localhost:8269")
-	query.Add("response_type", "token")
-	query.Add("scope", "user:read:follows")
-	req.URL.RawQuery = query.Encode()
-	fmt.Println("Please visit: " + req.URL.String() + "to authorize.")
 	return nil
 }
 
@@ -191,12 +194,30 @@ func (ad *AuthData) fetchToken() error {
 	return nil
 }
 
+func (ad *AuthData) fetchUserAccessToken() error {
+	req, err := http.NewRequest("GET", "https://id.twitch.tv/oauth2/authorize", nil)
+	if err != nil {
+		return err
+	}
+	query := make(url.Values)
+	query.Add("client_id", ad.clientID)
+	query.Add("redirect_uri", "http://localhost")
+	query.Add("response_type", "token")
+	query.Add("scope", "user:read:follows")
+	req.URL.RawQuery = query.Encode()
+	/*
+	 * ### TODO: FIX THIS ###
+	 */
+	fmt.Println("Please visit: " + req.URL.String())
+	return errors.New("paste in .cache/streamchecker/cacheduseracesstoken")
+}
+
 func (ad *AuthData) fetchUserID() error {
 	req, err := http.NewRequest("GET", "https://api.twitch.tv/helix/users", nil)
 	if err != nil {
 		return err
 	}
-	req.Header.Add("Authorization", "Bearer "+ad.accessToken)
+	req.Header.Add("Authorization", "Bearer "+ad.userAccessToken)
 	req.Header.Add("Client-Id", ad.clientID)
 	query := make(url.Values)
 	query.Add("login", ad.userName)
@@ -216,9 +237,9 @@ func (ad *AuthData) fetchUserID() error {
 		return err
 	}
 	if len(userDatas.Data) != 1 {
-		return errors.New("did not get 1 user result")
+		return fmt.Errorf("did not get 1 user result (%d)", len(userDatas.Data))
 	}
-	ad.userID = userDatas.Data[0].ID
+	ad.userID = userDatas.Data[0].BroadcasterID
 	return nil
 }
 

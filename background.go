@@ -78,6 +78,10 @@ func (bg *BGClient) Run() error {
 	if err != nil {
 		return err
 	}
+	err = bg.authData.getUserAccessToken()
+	if err != nil {
+		return err
+	}
 	err = bg.authData.getUserID()
 	if err != nil {
 		return err
@@ -94,7 +98,7 @@ func (bg *BGClient) Run() error {
 		fmt.Fprintln(os.Stderr, "Not serving data")
 	}
 	// Interrupt handling
-	interruptCh := make(chan os.Signal)
+	interruptCh := make(chan os.Signal, 1)
 	signal.Notify(interruptCh, os.Interrupt, syscall.SIGTERM)
 	// Main Event Loop
 	tick := time.NewTicker(bg.timer)
@@ -192,7 +196,7 @@ func GetLocalServerData(address string) (*Streams, error) {
 		Strims: new(StrimsStreams),
 		Twitch: new(TwitchStreams),
 	}
-	req, err := http.NewRequest("GET", "http://" + address, nil)
+	req, err := http.NewRequest("GET", "http://"+address, nil)
 	if err != nil {
 		return nil, err
 	}

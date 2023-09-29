@@ -3,7 +3,7 @@ package streamchecker
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 )
@@ -15,8 +15,8 @@ type twitchFollows struct {
 }
 
 type twitchFollowID struct {
-	ToID   string `json:"to_id"`
-	ToName string `json:"to_name"`
+	BroadcasterID   string `json:"broadcaster_id"`
+	BroadcasterName string `json:"broadcaster_name"`
 }
 
 type followPagination struct {
@@ -29,26 +29,28 @@ func (lhs *twitchFollows) update(rhs *twitchFollows) {
 }
 
 func getTwitchFollowsPart(userAccessToken, clientID, userID, pagCursor string) ([]byte, error) {
-	req, err := http.NewRequest("GET", "https://api.twitch.tv/helix/streams/followed", nil)
+	req, err := http.NewRequest("GET", "https://api.twitch.tv/helix/channels/followed", nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Add("Authorization", "Bearer "+userAccessToken)
 	req.Header.Add("Client-Id", clientID)
 	query := make(url.Values)
-	query.Add("from_id", userID)
+	query.Add("user_id", userID)
 	query.Add("first", "100")
-	query.Add("after", pagCursor)
+	if pagCursor != "" {
+		query.Add("after", pagCursor)
+	}
 	req.URL.RawQuery = query.Encode()
 	resp, err := http.DefaultClient.Do(req)
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("%s: %d", "Got responsecode", resp.StatusCode)
+		return nil, fmt.Errorf("got responsecode: %d have sent %s %s", resp.StatusCode, req.URL.String(), req.Header)
 	}
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	jsonBody, err := ioutil.ReadAll(resp.Body)
+	jsonBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}

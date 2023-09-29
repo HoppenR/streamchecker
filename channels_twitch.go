@@ -3,7 +3,7 @@ package streamchecker
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"time"
@@ -28,8 +28,8 @@ type UserDatas struct {
 }
 
 type UserData struct {
-	ID    string `json:"id"`
-	Login string `json:"login"`
+	BroadcasterID    string `json:"broadcaster_id"`
+	BroadcasterLogin string `json:"broadcaster_login"`
 }
 
 func (lhs *TwitchStreamData) GetName() string {
@@ -65,7 +65,7 @@ func getLiveTwitchStreamsPart(token, clientID string, twitchFollows *twitchFollo
 	req.Header.Add("Client-Id", clientID)
 	query := make(url.Values)
 	for i := first; i != twitchFollows.Total && i < (first+100); i++ {
-		query.Add("user_id", twitchFollows.Data[i].ToID)
+		query.Add("user_id", twitchFollows.Data[i].BroadcasterID)
 	}
 	query.Add("first", "100")
 	req.URL.RawQuery = query.Encode()
@@ -77,7 +77,7 @@ func getLiveTwitchStreamsPart(token, clientID string, twitchFollows *twitchFollo
 		return nil, err
 	}
 	defer resp.Body.Close()
-	jsonBody, err := ioutil.ReadAll(resp.Body)
+	jsonBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
