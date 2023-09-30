@@ -55,9 +55,6 @@ func (bg *BGClient) SetAuthData(ad *AuthData) *BGClient {
 }
 
 // Sets a function to call whenever a stream goes online
-// If false is returned the stream will not be treated as live and future
-// callbacks with the same data may happen. Useful for setting conditions such
-// as minimum viewership before handling it in the callback.
 func (bg *BGClient) SetLiveCallback(f func(StreamData)) *BGClient {
 	bg.onLive = f
 	return bg
