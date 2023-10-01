@@ -2,6 +2,7 @@ package streamchecker
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,7 +10,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"time"
 )
 
 type AuthData struct {
@@ -194,22 +197,78 @@ func (ad *AuthData) fetchToken() error {
 	return nil
 }
 
-func (ad *AuthData) fetchUserAccessToken() error {
+func (ad *AuthData) fetchAuthorizationToken() (string, error) {
 	req, err := http.NewRequest("GET", "https://id.twitch.tv/oauth2/authorize", nil)
+	if err != nil {
+		return "", err
+	}
+	query := make(url.Values)
+	query.Add("client_id", ad.clientID)
+	query.Add("redirect_uri", "http://localhost:8182/oauth-callback")
+	query.Add("response_type", "code")
+	query.Add("scope", "user:read:follows")
+	req.URL.RawQuery = query.Encode()
+	exec.Command("xdg-open", req.URL.String()).Run()
+	var authServer http.Server
+	var authorizationCode string
+	var authCallbackHandler = func(w http.ResponseWriter, r *http.Request) {
+		values := r.URL.Query()
+		accessCode := values.Get("code")
+		if accessCode == "" {
+			http.Error(
+				w,
+				"Access token not found in the redirect URL",
+				http.StatusInternalServerError,
+			)
+			err = authServer.Close()
+			if err != nil {
+				panic(err)
+			}
+		}
+		authorizationCode = accessCode
+		w.Write([]byte("Authentication successful! You can now close this page."))
+		err = authServer.Shutdown(context.Background())
+		if err != nil {
+			panic(err)
+		}
+	}
+	authServer.Addr = "localhost:8182"
+	authServer.Handler = http.HandlerFunc(authCallbackHandler)
+	authServer.IdleTimeout = 20 * time.Second
+	err = authServer.ListenAndServe()
+	if !errors.Is(err, http.ErrServerClosed) {
+		return "", err
+	}
+	return authorizationCode, nil
+}
+
+func (ad *AuthData) fetchUserAccessToken() error {
+	authorizationCode, err := ad.fetchAuthorizationToken()
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest("POST", "https://id.twitch.tv/oauth2/token", nil)
 	if err != nil {
 		return err
 	}
 	query := make(url.Values)
 	query.Add("client_id", ad.clientID)
-	query.Add("redirect_uri", "http://localhost")
-	query.Add("response_type", "token")
-	query.Add("scope", "user:read:follows")
+	query.Add("client_secret", ad.clientSecret)
+	query.Add("code", authorizationCode)
+	query.Add("grant_type", "authorization_code")
+	query.Add("redirect_uri", "http://localhost:8182/oauth-callback")
 	req.URL.RawQuery = query.Encode()
-	/*
-	 * ### TODO: FIX THIS ###
-	 */
-	fmt.Println("Please visit: " + req.URL.String())
-	return errors.New("paste in .cache/streamchecker/cacheduseracesstoken")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	jsonBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	fmt.Println("GOT EM?", string(jsonBody))
+	return nil
 }
 
 func (ad *AuthData) fetchUserID() error {
