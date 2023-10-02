@@ -2,9 +2,12 @@ package streamchecker
 
 import (
 	"encoding/gob"
+	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"strings"
 	"sync"
@@ -75,7 +78,7 @@ func (bg *BGClient) Run() error {
 	if err != nil {
 		return err
 	}
-	err = bg.authData.getUserAccessToken()
+	err = bg.authData.getUserAccessToken(bg.srv.Addr)
 	if err != nil {
 		return err
 	}
@@ -121,7 +124,7 @@ func (bg *BGClient) Run() error {
 	}
 	// Cleanup
 	err = bg.srv.Close()
-	if err != nil {
+	if !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 	return nil
@@ -172,7 +175,10 @@ func (bg *BGClient) check(refreshFollows bool) error {
 
 func (bg *BGClient) serveData() {
 	bg.srv.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if accept := r.Header.Get("Content-Type"); strings.Contains(accept, "application/octet-stream") {
+		if strings.Contains(
+			r.Header.Get("Content-Type"),
+			"application/octet-stream",
+		) {
 			switch r.Method {
 			case "GET":
 				enc := gob.NewEncoder(w)
@@ -193,18 +199,65 @@ func GetLocalServerData(address string) (*Streams, error) {
 		Strims: new(StrimsStreams),
 		Twitch: new(TwitchStreams),
 	}
+	// Don't follow redirects, but forward them to the user later
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
 	req, err := http.NewRequest("GET", "http://"+address, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Add("Content-Type", "application/octet-stream")
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	dec := gob.NewDecoder(resp.Body)
-	dec.Decode(&streams.Twitch)
-	dec.Decode(&streams.Strims)
-	return streams, nil
+	var retryCount = 0
+	var retryLimit = 100
+	var retryWait = 5 * time.Second
+	switch resp.StatusCode {
+	// We got a redirect to the authentication page, open in browser
+	case http.StatusFound:
+		location := resp.Header.Get("Location")
+		if location != "" {
+			log.Printf(
+				"WARN: attempting to authenticate at %s before retrying\n",
+				location,
+			)
+			exec.Command("xdg-open", location).Run()
+			for retryCount < retryLimit {
+				retryCount++
+				log.Printf(
+					"WARN: waiting for user to authenticate\n",
+				)
+				time.Sleep(retryWait)
+				resp, err = client.Do(req)
+				if err != nil {
+					log.Printf(
+						"WARN: %s retrying...\n",
+						err,
+					)
+					continue
+				}
+				if resp.StatusCode == http.StatusOK {
+					dec := gob.NewDecoder(resp.Body)
+					dec.Decode(&streams.Twitch)
+					dec.Decode(&streams.Strims)
+					return streams, nil
+				}
+			}
+			return streams, nil
+		}
+		return nil, errors.New("empty redirect")
+	// Got the stream data
+	case http.StatusOK:
+		dec := gob.NewDecoder(resp.Body)
+		dec.Decode(&streams.Twitch)
+		dec.Decode(&streams.Strims)
+		return streams, nil
+	}
+	return nil, fmt.Errorf("getlocalserverdata: status: %d", resp.StatusCode)
 }
