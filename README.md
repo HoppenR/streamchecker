@@ -13,9 +13,11 @@ user name to get streams for.
 ## Note
 
 
-Streamchecker supports automatically requesting and caching `AppAccessToken`,
-`UserId`, and `UserAccessToken` if you set the cache folder and save/restore it
-like the following.
+Streamchecker currently only supports automatically requesting caching
+`AppAccessToken`, `UserId`, and `UserAccessToken` locally (`localhost`). Even
+though the server properly redirects the client to open the authentication page.
+
+You can make use of the caching as follows.
 
 ```go
 ad := new(streamchecker.AuthData)

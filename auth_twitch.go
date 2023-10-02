@@ -218,7 +218,6 @@ func (ad *AuthData) fetchAuthorizationToken(port string) (string, error) {
 		// Redirect all normal traffic to a authentication URL until we
 		// have an authorization token
 		case "/":
-			fmt.Println("Serving...", r.URL.Path)
 			query := make(url.Values)
 			query.Add("client_id", ad.clientID)
 			query.Add("redirect_uri", "http://localhost"+port+"/oauth-callback")
@@ -232,7 +231,6 @@ func (ad *AuthData) fetchAuthorizationToken(port string) (string, error) {
 		case "/oauth-callback":
 			values := r.URL.Query()
 			accessCode := values.Get("code")
-			fmt.Println(accessCode)
 			if accessCode == "" {
 				http.Error(
 					w,
@@ -258,16 +256,15 @@ func (ad *AuthData) fetchAuthorizationToken(port string) (string, error) {
 	authServer.Addr = port
 	authServer.Handler = http.HandlerFunc(authCallbackHandler)
 	authServer.IdleTimeout = 20 * time.Second
-	fmt.Println("entering..")
 	err = authServer.ListenAndServe()
 	if !errors.Is(err, http.ErrServerClosed) {
 		return "", err
 	}
-	fmt.Println("exiting...")
 	return authorizationCode, nil
 }
 
 func (ad *AuthData) fetchUserAccessToken(port string) error {
+	fmt.Println("Waiting for user to authenticate...")
 	authorizationCode, err := ad.fetchAuthorizationToken(port)
 	if err != nil {
 		return err
@@ -306,7 +303,7 @@ func (ad *AuthData) fetchUserID() error {
 	if err != nil {
 		return err
 	}
-	req.Header.Add("Authorization", "Bearer "+ad.userAccessToken)
+	req.Header.Add("Authorization", "Bearer "+ad.accessToken)
 	req.Header.Add("Client-Id", ad.clientID)
 	query := make(url.Values)
 	query.Add("login", ad.userName)
@@ -325,10 +322,7 @@ func (ad *AuthData) fetchUserID() error {
 	if err != nil {
 		return err
 	}
-	if len(userDatas.Data) != 1 {
-		return fmt.Errorf("did not get 1 user result (%d)", len(userDatas.Data))
-	}
-	ad.userID = userDatas.Data[0].BroadcasterID
+	ad.userID = userDatas.Data[0].ID
 	return nil
 }
 
