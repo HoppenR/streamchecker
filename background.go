@@ -189,6 +189,14 @@ func (bg *BGClient) serveData() {
 		) {
 			switch r.Method {
 			case "GET":
+				log.Println(
+					"Serving data to IP: ",
+					r.RemoteAddr,
+					", X-Real-IP: ",
+					r.Header.Get("X-Real-IP"),
+					", X-Forwarded-For: ",
+					r.Header.Get("X-Forwarded-For"),
+				)
 				enc := gob.NewEncoder(w)
 				bg.mutex.Lock()
 				enc.Encode(&bg.streams.Twitch)
