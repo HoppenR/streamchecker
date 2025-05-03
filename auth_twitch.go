@@ -274,16 +274,12 @@ func (ad *AuthData) fetchUserAccessToken(address string, redirectUrl string) err
 		return err
 	}
 
-	callbackUrl, err := url.JoinPath(address, "oauth-callback")
-	if err != nil {
-		return err
-	}
 	query := make(url.Values)
 	query.Add("client_id", ad.clientID)
 	query.Add("client_secret", ad.clientSecret)
 	query.Add("code", authorizationCode)
 	query.Add("grant_type", "authorization_code")
-	query.Add("redirect_uri", callbackUrl)
+	query.Add("redirect_uri", redirectUrl)
 	req.URL.RawQuery = query.Encode()
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
