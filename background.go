@@ -194,7 +194,7 @@ func (bg *BGClient) serveData() {
 	bg.srv.ListenAndServe()
 }
 
-func GetLocalServerData(address string) (*Streams, error) {
+func GetServerData(address string) (*Streams, error) {
 	streams := &Streams{
 		Strims: new(StrimsStreams),
 		Twitch: new(TwitchStreams),
@@ -205,7 +205,7 @@ func GetLocalServerData(address string) (*Streams, error) {
 			return http.ErrUseLastResponse
 		},
 	}
-	req, err := http.NewRequest("GET", "http://"+address, nil)
+	req, err := http.NewRequest("GET", address, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -259,5 +259,5 @@ func GetLocalServerData(address string) (*Streams, error) {
 		dec.Decode(&streams.Strims)
 		return streams, nil
 	}
-	return nil, fmt.Errorf("getlocalserverdata: status: %d", resp.StatusCode)
+	return nil, fmt.Errorf("getServerData status: %d", resp.StatusCode)
 }

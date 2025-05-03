@@ -117,9 +117,9 @@ func (ad *AuthData) getToken() error {
 	return nil
 }
 
-func (ad *AuthData) getUserAccessToken(port string) error {
+func (ad *AuthData) getUserAccessToken(address string) error {
 	if ad.userAccessToken == "" {
-		err := ad.fetchUserAccessToken(port)
+		err := ad.fetchUserAccessToken(address)
 		if err != nil {
 			return err
 		}
@@ -206,7 +206,7 @@ func (ad *AuthData) fetchToken() error {
 	return nil
 }
 
-func (ad *AuthData) fetchAuthorizationToken(port string) (string, error) {
+func (ad *AuthData) fetchAuthorizationToken(address string) (string, error) {
 	req, err := http.NewRequest("GET", "https://id.twitch.tv/oauth2/authorize", nil)
 	if err != nil {
 		return "", err
@@ -218,9 +218,13 @@ func (ad *AuthData) fetchAuthorizationToken(port string) (string, error) {
 		// Redirect all normal traffic to a authentication URL until we
 		// have an authorization token
 		case "/":
+			callbackUrl, err := url.JoinPath(address, "oauth-callback")
+			if err != nil {
+				panic(err)
+			}
 			query := make(url.Values)
 			query.Add("client_id", ad.clientID)
-			query.Add("redirect_uri", "http://localhost"+port+"/oauth-callback")
+			query.Add("redirect_uri", callbackUrl)
 			query.Add("response_type", "code")
 			query.Add("scope", "user:read:follows")
 			req.URL.RawQuery = query.Encode()
@@ -253,7 +257,7 @@ func (ad *AuthData) fetchAuthorizationToken(port string) (string, error) {
 		}
 		w.WriteHeader(http.StatusNotFound)
 	}
-	authServer.Addr = port
+	authServer.Addr = address
 	authServer.Handler = http.HandlerFunc(authCallbackHandler)
 	authServer.IdleTimeout = 20 * time.Second
 	err = authServer.ListenAndServe()
@@ -263,13 +267,18 @@ func (ad *AuthData) fetchAuthorizationToken(port string) (string, error) {
 	return authorizationCode, nil
 }
 
-func (ad *AuthData) fetchUserAccessToken(port string) error {
+func (ad *AuthData) fetchUserAccessToken(address string) error {
 	fmt.Println("Waiting for user to authenticate...")
-	authorizationCode, err := ad.fetchAuthorizationToken(port)
+	authorizationCode, err := ad.fetchAuthorizationToken(address)
 	if err != nil {
 		return err
 	}
 	req, err := http.NewRequest("POST", "https://id.twitch.tv/oauth2/token", nil)
+	if err != nil {
+		return err
+	}
+
+	callbackUrl, err := url.JoinPath(address, "oauth-callback")
 	if err != nil {
 		return err
 	}
@@ -278,7 +287,7 @@ func (ad *AuthData) fetchUserAccessToken(port string) error {
 	query.Add("client_secret", ad.clientSecret)
 	query.Add("code", authorizationCode)
 	query.Add("grant_type", "authorization_code")
-	query.Add("redirect_uri", "http://localhost"+port+"/oauth-callback")
+	query.Add("redirect_uri", callbackUrl)
 	req.URL.RawQuery = query.Encode()
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
