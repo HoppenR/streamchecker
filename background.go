@@ -22,6 +22,7 @@ type BGClient struct {
 	mutex       sync.Mutex
 	onLive      func(StreamData)
 	onOffline   func(StreamData)
+	redirectUrl string
 	srv         http.Server
 	streams     *Streams
 	timer       time.Duration
@@ -52,6 +53,13 @@ func (bg *BGClient) SetAddress(address string) *BGClient {
 	return bg
 }
 
+func (bg *BGClient) SetRedirect(address string) *BGClient {
+	if address != "" {
+		bg.redirectUrl = address
+	}
+	return bg
+}
+
 func (bg *BGClient) SetAuthData(ad *AuthData) *BGClient {
 	bg.authData = ad
 	return bg
@@ -78,7 +86,7 @@ func (bg *BGClient) Run() error {
 	if err != nil {
 		return err
 	}
-	err = bg.authData.getUserAccessToken(bg.srv.Addr)
+	err = bg.authData.getUserAccessToken(bg.srv.Addr, bg.redirectUrl)
 	if err != nil {
 		return err
 	}

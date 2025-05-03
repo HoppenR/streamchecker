@@ -117,9 +117,9 @@ func (ad *AuthData) getToken() error {
 	return nil
 }
 
-func (ad *AuthData) getUserAccessToken(address string) error {
+func (ad *AuthData) getUserAccessToken(address string, redirectUrl string) error {
 	if ad.userAccessToken == "" {
-		err := ad.fetchUserAccessToken(address)
+		err := ad.fetchUserAccessToken(address, redirectUrl)
 		if err != nil {
 			return err
 		}
@@ -206,7 +206,7 @@ func (ad *AuthData) fetchToken() error {
 	return nil
 }
 
-func (ad *AuthData) fetchAuthorizationToken(address string) (string, error) {
+func (ad *AuthData) fetchAuthorizationToken(address string, redirectUrl string) (string, error) {
 	req, err := http.NewRequest("GET", "https://id.twitch.tv/oauth2/authorize", nil)
 	if err != nil {
 		return "", err
@@ -218,13 +218,9 @@ func (ad *AuthData) fetchAuthorizationToken(address string) (string, error) {
 		// Redirect all normal traffic to a authentication URL until we
 		// have an authorization token
 		case "/":
-			callbackUrl, err := url.JoinPath(address, "oauth-callback")
-			if err != nil {
-				panic(err)
-			}
 			query := make(url.Values)
 			query.Add("client_id", ad.clientID)
-			query.Add("redirect_uri", callbackUrl)
+			query.Add("redirect_uri", redirectUrl)
 			query.Add("response_type", "code")
 			query.Add("scope", "user:read:follows")
 			req.URL.RawQuery = query.Encode()
@@ -267,9 +263,9 @@ func (ad *AuthData) fetchAuthorizationToken(address string) (string, error) {
 	return authorizationCode, nil
 }
 
-func (ad *AuthData) fetchUserAccessToken(address string) error {
+func (ad *AuthData) fetchUserAccessToken(address string, redirectUrl string) error {
 	fmt.Println("Waiting for user to authenticate...")
-	authorizationCode, err := ad.fetchAuthorizationToken(address)
+	authorizationCode, err := ad.fetchAuthorizationToken(address, redirectUrl)
 	if err != nil {
 		return err
 	}
