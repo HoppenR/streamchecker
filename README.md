@@ -13,10 +13,6 @@ user name to get streams for.
 ## Note
 
 
-Streamchecker currently only supports automatically requesting caching
-`AppAccessToken`, `UserId`, and `UserAccessToken` locally (`localhost`). Even
-though the server properly redirects the client to open the authentication page.
-
 You can make use of the caching as follows.
 
 ```go
@@ -26,7 +22,7 @@ ad.GetCachedData()
 
 ad.SetClientID("...")
 ad.SetClientSecret("...")
-ad.SetUseName("...")
+ad.SetUserName("...")
 
 ad.getToken()
 ad.getUserAccessToken()
@@ -41,6 +37,7 @@ ad.SaveCache()
 
 
 A better example showing more of the features can be found at [streamshower](https://github.com/HoppenR/streamshower/blob/main/main.go)
+or shown in the example Dockerfile.
 
 ### Simple example:
 
