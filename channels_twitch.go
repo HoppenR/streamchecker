@@ -72,8 +72,10 @@ func getLiveTwitchStreamsPart(token, clientID string, twitchFollows *twitchFollo
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
+	if resp.StatusCode == http.StatusUnauthorized {
+		return nil, ErrUnauthorized
+	}
 	if err != nil {
-		// TODO: Handle connection reset by peer
 		return nil, err
 	}
 	defer resp.Body.Close()

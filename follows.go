@@ -43,7 +43,9 @@ func getTwitchFollowsPart(userAccessToken, clientID, userID, pagCursor string) (
 	}
 	req.URL.RawQuery = query.Encode()
 	resp, err := http.DefaultClient.Do(req)
-	if resp.StatusCode != 200 {
+	if resp.StatusCode == http.StatusUnauthorized {
+		return nil, ErrUnauthorized
+	} else if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("got responsecode: %d have sent %s %s", resp.StatusCode, req.URL.String(), req.Header)
 	}
 	if err != nil {

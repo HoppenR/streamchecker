@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -38,11 +39,16 @@ type StreamData interface {
 	GetService() string
 }
 
+var ErrFollowsUnavailable = errors.New("No user access token and no follows obtained")
+
 func NewBG() *BGClient {
 	return &BGClient{
 		ForceCheck: make(chan bool),
 		lives:      make(map[string]StreamData),
-		streams:    new(Streams),
+		streams: &Streams{
+			Strims: new(StrimsStreams),
+			Twitch: new(TwitchStreams),
+		},
 	}
 }
 
@@ -83,10 +89,6 @@ func (bg *BGClient) SetInterval(timer time.Duration) *BGClient {
 
 func (bg *BGClient) Run() error {
 	err := bg.authData.getToken()
-	if err != nil {
-		return err
-	}
-	err = bg.authData.getUserAccessToken(bg.srv.Addr, bg.redirectUrl)
 	if err != nil {
 		return err
 	}
@@ -145,18 +147,25 @@ func (bg *BGClient) check(refreshFollows bool) error {
 	)
 	newLives = make(map[string]StreamData)
 	bg.mutex.Lock()
+	defer bg.mutex.Unlock()
+	if bg.authData.appAccessToken == nil || bg.authData.appAccessToken.IsExpired(bg.timer) {
+		fmt.Println("WARN: Expired app access token, refetching")
+		bg.authData.fetchToken()
+	}
 	err = bg.GetLiveStreams(refreshFollows)
-	// TODO: if StatusCode == 501 request new token
-	if err != nil {
+	if errors.Is(err, ErrFollowsUnavailable) {
+		return nil
+	} else if err != nil {
 		return err
 	}
+	// TODO: can be simplified and optimized depending on if onLive and/or
+	//       onOffline are set or null
 	for i, v := range bg.streams.Twitch.Data {
 		newLives[strings.ToLower(v.UserName)] = &bg.streams.Twitch.Data[i]
 	}
 	for i, v := range bg.streams.Strims.Data {
 		newLives[strings.ToLower(v.Channel)] = &bg.streams.Strims.Data[i]
 	}
-	bg.mutex.Unlock()
 	if bg.initialized {
 		for user, data := range newLives {
 			if _, ok := bg.lives[user]; !ok {
@@ -182,31 +191,89 @@ func (bg *BGClient) check(refreshFollows bool) error {
 }
 
 func (bg *BGClient) serveData() {
-	bg.srv.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.Contains(
-			r.Header.Get("Content-Type"),
-			"application/octet-stream",
-		) {
-			switch r.Method {
-			case "GET":
-				log.Println(
-					"Serving data to IP: ",
-					r.RemoteAddr,
-					", X-Real-IP: ",
-					r.Header.Get("X-Real-IP"),
-					", X-Forwarded-For: ",
-					r.Header.Get("X-Forwarded-For"),
-				)
-				enc := gob.NewEncoder(w)
-				bg.mutex.Lock()
-				enc.Encode(&bg.streams.Twitch)
-				enc.Encode(&bg.streams.Strims)
-				bg.mutex.Unlock()
-			case "POST":
-				bg.ForceCheck <- true
-			}
-		}
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("This endpoint is meant to be used through the streamchecker project"))
 	})
+
+	mux.HandleFunc("GET /auth", func(w http.ResponseWriter, r *http.Request) {
+		if bg.authData.userAccessToken == nil || bg.authData.userAccessToken.IsExpired(bg.timer) {
+			query := make(url.Values)
+			query.Add("client_id", bg.authData.clientID)
+			query.Add("redirect_uri", bg.redirectUrl)
+			query.Add("response_type", "code")
+			query.Add("scope", "user:read:follows")
+
+			authURL := "https://id.twitch.tv/oauth2/authorize?" + query.Encode()
+			http.Redirect(w, r, authURL, http.StatusFound)
+			return
+		}
+
+		w.Write([]byte("Welcome to streamshower."))
+	})
+
+	mux.HandleFunc("GET /stream-data", func(w http.ResponseWriter, r *http.Request) {
+		if !strings.Contains(r.Header.Get("Content-Type"), "application/octet-stream") {
+			w.Write([]byte("This endpoint is meant to be used through the streamchecker project"))
+			return
+		}
+
+		log.Println(
+			"Serving data to IP: ",
+			r.RemoteAddr,
+			", X-Real-IP: ",
+			r.Header.Get("X-Real-IP"),
+			", X-Forwarded-For: ",
+			r.Header.Get("X-Forwarded-For"),
+		)
+
+		if bg.authData.userAccessToken == nil || bg.authData.userAccessToken.IsExpired(bg.timer) {
+			http.Redirect(w, r, "/auth", http.StatusFound)
+			return
+		}
+
+		ok := bg.mutex.TryLock()
+		if ok {
+			defer bg.mutex.Unlock()
+		}
+		if !ok || len(bg.streams.Twitch.Data) == 0 || len(bg.streams.Strims.Data) == 0 {
+			http.Error(w, "Data not ready", http.StatusLocked)
+			return
+		}
+
+		enc := gob.NewEncoder(w)
+		enc.Encode(&bg.streams.Twitch)
+		enc.Encode(&bg.streams.Strims)
+	})
+
+	mux.HandleFunc("POST /stream-data", func(w http.ResponseWriter, r *http.Request) {
+		if bg.authData.userAccessToken == nil || bg.authData.userAccessToken.IsExpired(bg.timer) {
+			http.Redirect(w, r, "/auth", http.StatusFound)
+			return
+		}
+		bg.ForceCheck <- true
+	})
+
+	mux.HandleFunc("GET /oauth-callback", func(w http.ResponseWriter, r *http.Request) {
+		values := r.URL.Query()
+		accessCode := values.Get("code")
+		if accessCode == "" {
+			http.Error(w, "Access token not found in the redirect URL", http.StatusInternalServerError)
+			return
+		}
+		log.Println("Got oauth code")
+		w.Write([]byte("Authentication successful! You can now close this page."))
+
+		err := bg.authData.ExchangeCodeForToken(accessCode, bg.redirectUrl)
+		if err != nil {
+			log.Println("ERROR: exchanging code for token" + err.Error())
+			return
+		}
+		bg.ForceCheck <- true
+	})
+
+	bg.srv.Handler = mux
 	bg.srv.ListenAndServe()
 }
 
@@ -239,11 +306,13 @@ func GetServerData(address string) (*Streams, error) {
 	case http.StatusFound:
 		location := resp.Header.Get("Location")
 		if location != "" {
-			log.Printf(
-				"WARN: attempting to authenticate at %s before retrying\n",
-				location,
-			)
-			exec.Command("xdg-open", location).Run()
+			relURL, err := url.Parse(location)
+			if err != nil {
+				return nil, err
+			}
+			absoluteURL := resp.Request.URL.ResolveReference(relURL)
+			log.Printf("Attempting to authenticate at %s before retrying\n", absoluteURL.String())
+			exec.Command("xdg-open", absoluteURL.String()).Run()
 			for retryCount < retryLimit {
 				retryCount++
 				log.Printf(
@@ -252,10 +321,7 @@ func GetServerData(address string) (*Streams, error) {
 				time.Sleep(retryWait)
 				resp, err = client.Do(req)
 				if err != nil {
-					log.Printf(
-						"WARN: %s retrying...\n",
-						err,
-					)
+					log.Printf("WARN: %s retrying...\n", err)
 					continue
 				}
 				if resp.StatusCode == http.StatusOK {
@@ -263,6 +329,8 @@ func GetServerData(address string) (*Streams, error) {
 					dec.Decode(&streams.Twitch)
 					dec.Decode(&streams.Strims)
 					return streams, nil
+				} else {
+					log.Printf("Got statuscode %d\n", resp.StatusCode)
 				}
 			}
 			return streams, nil
