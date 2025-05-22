@@ -233,11 +233,9 @@ func (bg *BGClient) serveData() {
 			return
 		}
 
-		ok := bg.mutex.TryLock()
-		if ok {
-			defer bg.mutex.Unlock()
-		}
-		if !ok || len(bg.streams.Twitch.Data) == 0 || len(bg.streams.Strims.Data) == 0 {
+		bg.mutex.Lock()
+		defer bg.mutex.Unlock()
+		if len(bg.streams.Twitch.Data) == 0 || len(bg.streams.Strims.Data) == 0 {
 			http.Error(w, "Data not ready", http.StatusLocked)
 			return
 		}
