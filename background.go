@@ -229,11 +229,6 @@ func (bg *BGClient) serveData() {
 			r.Header.Get("X-Forwarded-For"),
 		)
 
-		if bg.authData.userAccessToken == nil || bg.authData.userAccessToken.IsExpired(bg.timer) {
-			http.Redirect(w, r, "/auth", http.StatusFound)
-			return
-		}
-
 		bg.mutex.Lock()
 		defer bg.mutex.Unlock()
 		if len(bg.streams.Twitch.Data) == 0 || len(bg.streams.Strims.Data) == 0 {
@@ -269,6 +264,7 @@ func (bg *BGClient) serveData() {
 			return
 		}
 		bg.ForceCheck <- true
+		http.Redirect(w, r, "/stream-data", http.StatusFound)
 	})
 
 	bg.srv.Handler = mux
