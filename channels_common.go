@@ -37,7 +37,8 @@ func (bg *BGClient) GetLiveStreams(refreshFollows bool) error {
 		}
 	}
 
-	newTwitchStreams, err := GetLiveTwitchStreams(bg.authData.appAccessToken.AccessToken, bg.authData.clientID, bg.follows)
+	var newTwitchStreams *TwitchStreams
+	newTwitchStreams, err = GetLiveTwitchStreams(bg.authData.appAccessToken.AccessToken, bg.authData.clientID, bg.follows)
 	if errors.Is(err, context.DeadlineExceeded) {
 		log.Println("WARN: Get twitch streams timed out")
 	} else if errors.Is(err, ErrUnauthorized) {
@@ -50,7 +51,8 @@ func (bg *BGClient) GetLiveStreams(refreshFollows bool) error {
 	}
 
 	// Strims
-	newStrimsStreams, err := GetLiveStrimsStreams()
+	var newStrimsStreams *StrimsStreams
+	newStrimsStreams, err = GetLiveStrimsStreams()
 	if errors.Is(err, context.DeadlineExceeded) {
 		log.Println("WARN: Get strims streams timed out")
 	} else if err != nil {

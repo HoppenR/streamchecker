@@ -88,7 +88,8 @@ func (bg *BGClient) SetInterval(timer time.Duration) *BGClient {
 }
 
 func (bg *BGClient) Run() error {
-	err := bg.authData.getToken()
+	var err error
+	err = bg.authData.getToken()
 	if err != nil {
 		return err
 	}
@@ -254,8 +255,7 @@ func (bg *BGClient) serveData() {
 	})
 
 	mux.HandleFunc("GET /oauth-callback", func(w http.ResponseWriter, r *http.Request) {
-		values := r.URL.Query()
-		accessCode := values.Get("code")
+		accessCode := r.URL.Query().Get("code")
 		if accessCode == "" {
 			http.Error(w, "Access token not found in the redirect URL", http.StatusInternalServerError)
 			return
@@ -286,12 +286,17 @@ func GetServerData(address string) (*Streams, error) {
 			return http.ErrUseLastResponse
 		},
 	}
-	req, err := http.NewRequest("GET", address, nil)
+
+	var err error
+	var req *http.Request
+	req, err = http.NewRequest("GET", address, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Add("Content-Type", "application/octet-stream")
-	resp, err := client.Do(req)
+
+	var resp *http.Response
+	resp, err = client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -304,11 +309,14 @@ func GetServerData(address string) (*Streams, error) {
 	case http.StatusFound:
 		location := resp.Header.Get("Location")
 		if location != "" {
-			relURL, err := url.Parse(location)
+			var relURL *url.URL
+			relURL, err = url.Parse(location)
 			if err != nil {
 				return nil, err
 			}
-			absoluteURL := resp.Request.URL.ResolveReference(relURL)
+
+			var absoluteURL *url.URL
+			absoluteURL = resp.Request.URL.ResolveReference(relURL)
 			log.Printf("Attempting to authenticate at %s before retrying\n", absoluteURL.String())
 			exec.Command("xdg-open", absoluteURL.String()).Run()
 			for retryCount < retryLimit {

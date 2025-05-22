@@ -42,7 +42,9 @@ func getTwitchFollowsPart(userAccessToken, clientID, userID, pagCursor string) (
 		query.Add("after", pagCursor)
 	}
 	req.URL.RawQuery = query.Encode()
-	resp, err := http.DefaultClient.Do(req)
+
+	var resp *http.Response
+	resp, err = http.DefaultClient.Do(req)
 	if resp.StatusCode == http.StatusUnauthorized {
 		return nil, ErrUnauthorized
 	} else if resp.StatusCode != http.StatusOK {
@@ -52,7 +54,9 @@ func getTwitchFollowsPart(userAccessToken, clientID, userID, pagCursor string) (
 		return nil, err
 	}
 	defer resp.Body.Close()
-	jsonBody, err := io.ReadAll(resp.Body)
+
+	var jsonBody []byte
+	jsonBody, err = io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}

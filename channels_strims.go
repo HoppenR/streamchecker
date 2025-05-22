@@ -49,18 +49,24 @@ func (ss *StrimsStreams) Swap(i, j int) {
 }
 
 func GetLiveStrimsStreams() (*StrimsStreams, error) {
-	req, err := http.NewRequest("GET", "https://strims.gg/api", nil)
+	var err error
+	var req *http.Request
+	req, err = http.NewRequest("GET", "https://strims.gg/api", nil)
 	if err != nil {
 		return nil, err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
+
+	var resp *http.Response
+	resp, err = http.DefaultClient.Do(req.WithContext(ctx))
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	jsonBody, err := io.ReadAll(resp.Body)
+
+	var jsonBody []byte
+	jsonBody, err = io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
