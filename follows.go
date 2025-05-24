@@ -45,13 +45,13 @@ func getTwitchFollowsPart(userAccessToken, clientID, userID, pagCursor string) (
 
 	var resp *http.Response
 	resp, err = http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
 	if resp.StatusCode == http.StatusUnauthorized {
 		return nil, ErrUnauthorized
 	} else if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("got responsecode: %d have sent %s %s", resp.StatusCode, req.URL.String(), req.Header)
-	}
-	if err != nil {
-		return nil, err
 	}
 	defer resp.Body.Close()
 

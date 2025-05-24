@@ -74,11 +74,11 @@ func getLiveTwitchStreamsPart(token, clientID string, twitchFollows *twitchFollo
 
 	var resp *http.Response
 	resp, err = http.DefaultClient.Do(req.WithContext(ctx))
-	if resp.StatusCode == http.StatusUnauthorized {
-		return nil, ErrUnauthorized
-	}
 	if err != nil {
 		return nil, err
+	}
+	if resp.StatusCode == http.StatusUnauthorized {
+		return nil, ErrUnauthorized
 	}
 	defer resp.Body.Close()
 

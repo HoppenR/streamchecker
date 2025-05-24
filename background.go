@@ -89,7 +89,7 @@ func (bg *BGClient) SetInterval(timer time.Duration) *BGClient {
 
 func (bg *BGClient) Run() error {
 	var err error
-	err = bg.authData.getToken()
+	err = bg.authData.getAppAccessToken()
 	if err != nil {
 		return err
 	}
@@ -151,7 +151,16 @@ func (bg *BGClient) check(refreshFollows bool) error {
 	defer bg.mutex.Unlock()
 	if bg.authData.appAccessToken == nil || bg.authData.appAccessToken.IsExpired(bg.timer) {
 		fmt.Println("WARN: Expired app access token, refetching")
-		bg.authData.fetchToken()
+		bg.authData.fetchAppAccessToken()
+	}
+	if bg.authData.userAccessToken != nil && bg.authData.userAccessToken.IsExpired(bg.timer) {
+		err = bg.authData.refreshUserAccessToken()
+		if errors.Is(err, ErrUnauthorized) {
+			fmt.Println("WARN: Could not refresh user access token")
+			bg.authData.userAccessToken = nil
+		} else if err != nil {
+			return err
+		}
 	}
 	err = bg.GetLiveStreams(refreshFollows)
 	if errors.Is(err, ErrFollowsUnavailable) {
@@ -229,6 +238,11 @@ func (bg *BGClient) serveData() {
 			r.Header.Get("X-Forwarded-For"),
 		)
 
+		if bg.authData.userAccessToken == nil {
+			http.Redirect(w, r, "/auth", http.StatusFound)
+			return
+		}
+
 		bg.mutex.Lock()
 		defer bg.mutex.Unlock()
 		if len(bg.streams.Twitch.Data) == 0 || len(bg.streams.Strims.Data) == 0 {
@@ -242,7 +256,7 @@ func (bg *BGClient) serveData() {
 	})
 
 	mux.HandleFunc("POST /stream-data", func(w http.ResponseWriter, r *http.Request) {
-		if bg.authData.userAccessToken == nil || bg.authData.userAccessToken.IsExpired(bg.timer) {
+		if bg.authData.userAccessToken == nil {
 			http.Redirect(w, r, "/auth", http.StatusFound)
 			return
 		}
@@ -252,19 +266,18 @@ func (bg *BGClient) serveData() {
 	mux.HandleFunc("GET /oauth-callback", func(w http.ResponseWriter, r *http.Request) {
 		accessCode := r.URL.Query().Get("code")
 		if accessCode == "" {
-			http.Error(w, "Access token not found in the redirect URL", http.StatusInternalServerError)
+			http.Error(w, "Access token not found", http.StatusBadRequest)
 			return
 		}
 		log.Println("Got oauth code")
 		w.Write([]byte("Authentication successful! You can now close this page."))
 
-		err := bg.authData.ExchangeCodeForToken(accessCode, bg.redirectUrl)
+		err := bg.authData.exchangeCodeForToken(accessCode, bg.redirectUrl)
 		if err != nil {
 			log.Println("ERROR: exchanging code for token" + err.Error())
 			return
 		}
 		bg.ForceCheck <- true
-		http.Redirect(w, r, "/stream-data", http.StatusFound)
 	})
 
 	bg.srv.Handler = mux

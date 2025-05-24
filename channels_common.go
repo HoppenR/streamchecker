@@ -22,13 +22,10 @@ func (bg *BGClient) GetLiveStreams(refreshFollows bool) error {
 				log.Println("WARN: Get twitch follows timed out")
 			} else if errors.Is(err, ErrUnauthorized) {
 				fmt.Println("WARN: Unauthorized response while getting follows")
-				bg.authData.userAccessToken = nil
 			} else if err != nil {
 				log.Println(bg.authData.userAccessToken == nil)
 				return err
 			}
-		} else {
-			bg.authData.userAccessToken = nil
 		}
 
 		if bg.follows == nil {

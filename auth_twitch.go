@@ -126,9 +126,9 @@ func (ad *AuthData) GetCachedData() error {
 	return nil
 }
 
-func (ad *AuthData) getToken() error {
+func (ad *AuthData) getAppAccessToken() error {
 	if ad.appAccessToken == nil || ad.appAccessToken.IsExpired(time.Duration(0)) {
-		err := ad.fetchToken()
+		err := ad.fetchAppAccessToken()
 		if err != nil {
 			return err
 		}
@@ -193,7 +193,7 @@ func (ad *AuthData) writeCache(fileName string, data any) error {
 	return nil
 }
 
-func (ad *AuthData) fetchToken() error {
+func (ad *AuthData) fetchAppAccessToken() error {
 	req, err := http.NewRequest("POST", "https://id.twitch.tv/oauth2/token", nil)
 	if err != nil {
 		return err
@@ -219,7 +219,7 @@ func (ad *AuthData) fetchToken() error {
 	return err
 }
 
-func (ad *AuthData) ExchangeCodeForToken(authorizationCode string, redirectUrl string) error {
+func (ad *AuthData) exchangeCodeForToken(authorizationCode string, redirectUrl string) error {
 	req, err := http.NewRequest("POST", "https://id.twitch.tv/oauth2/token", nil)
 	if err != nil {
 		return err
@@ -245,6 +245,42 @@ func (ad *AuthData) ExchangeCodeForToken(authorizationCode string, redirectUrl s
 	if err != nil {
 		return err
 	}
+	err = json.Unmarshal(jsonBody, &ad.userAccessToken)
+	ad.userAccessToken.IssuedAt = time.Now()
+	return err
+}
+
+func (ad *AuthData) refreshUserAccessToken() error {
+	req, err := http.NewRequest("POST", "https://id.twitch.tv/oauth2/token", nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Add("Authorization", "Bearer "+ad.appAccessToken.AccessToken)
+	req.Header.Add("Client-Id", ad.clientID)
+
+	query := make(url.Values)
+	query.Add("client_id", ad.clientID)
+	query.Add("client_secret", ad.clientSecret)
+	query.Add("grant_type", "refresh_code")
+	query.Add("refresh_token", ad.userAccessToken.RefreshToken)
+	req.URL.RawQuery = query.Encode()
+
+	var resp *http.Response
+	resp, err = http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode == http.StatusUnauthorized {
+		return ErrUnauthorized
+	}
+	defer resp.Body.Close()
+
+	var jsonBody []byte
+	jsonBody, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
 	err = json.Unmarshal(jsonBody, &ad.userAccessToken)
 	ad.userAccessToken.IssuedAt = time.Now()
 	return err

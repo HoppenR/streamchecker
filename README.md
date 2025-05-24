@@ -10,115 +10,67 @@ To get twitch streams it requires a twitch app access token that in turn
 requires an API key (`client ID`) and its secret (`client secret`). As well as a
 user name to get streams for.
 
-## Note
+Currently it requries an externally accessible domain over https to be able to
+receive an access code from an oauth callback.
 
-
-You can make use of the caching as follows.
-
-```go
-ad := new(streamchecker.AuthData)
-ad.SetCacheFolder(MY_CACHE_FOLDER)
-ad.GetCachedData()
-
-ad.SetClientID("...")
-ad.SetClientSecret("...")
-ad.SetUserName("...")
-
-ad.getToken()
-ad.getUserAccessToken()
-ad.getUserID()
-
-// ...
-
-ad.SaveCache()
-```
-
-## Examples
+## Example
 
 
 A better example showing more of the features can be found at [streamshower](https://github.com/HoppenR/streamshower/blob/main/main.go)
 or shown in the example Dockerfile.
 
-### Simple example:
+### Serving data locally
+
+
+Here the server and client can be easily implemented, examples of both
+can be found below.
+
+
+### Server
+
 
 ```go
 package main
 
 import (
-    "fmt"
     "time"
 
     sc "github.com/HoppenR/streamchecker"
 )
 
-// Simple example without caching and without serving data locally:
 var (
     ClientID        string
     ClientSecret    string
-    UserAccessToken string
 )
 
 func main() {
     ad := new(sc.AuthData)
     ad.SetClientID(ClientID).
         SetClientSecret(ClientSecret).
-        SetUserAccessToken(UserAccessToken).
         SetUserName("MyUsername")
-
     sc.NewBG().
         SetAuthData(ad).
+	SetRedirect("https://example.com/oauth-callback").
         SetInterval(5 * time.Minute).
-        SetLiveCallback(func(sd sc.StreamData) {
-            switch sd.GetService() {
-            case "twitch-followed":
-                fmt.Printf("%s just went live on twitch\n", sd.GetName())
-            default:
-                fmt.Printf(
-                    "%s is being watched on strims on platform %s\n",
-                    sd.GetName(),
-                    sd.GetService(),
-                )
-            }
-        }).
         Run()
 }
 ```
 
-### Serving data locally
+
+### Client
 
 
 ```go
 package main
 
 import (
-    "fmt"
-    "time"
-
     sc "github.com/HoppenR/streamchecker"
 )
 
-// Simple example serving data locally:
-var (
-    ClientID        string
-    ClientSecret    string
-    UserAccessToken string
-)
-
 func main() {
-    ad := new(sc.AuthData)
-    ad.SetClientID(ClientID).
-        SetClientSecret(ClientSecret).
-        SetUserAccessToken(UserAccessToken).
-        SetUserName("MyUsername")
-
-    sc.NewBG().
-        SetAddress("127.0.0.1:8181").
-        SetAuthData(ad).
-        SetInterval(5 * time.Minute).
-        Run()
-
-    // Data can now be retrieved with
-    // `sc.GetLocalServerData("127.0.0.1:8181")`
-    // from another process
+	ADDR := "http://192.168.0.44:8181"
+	// Or the externally hosted address:
+	// ADDR := "https://example.com/oauth-callback"
+	streams, err := sc.GetServerData(ADDR)
 }
 ```
