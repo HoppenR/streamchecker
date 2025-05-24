@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"time"
 )
 
 type Streams struct {
-	Strims *StrimsStreams
-	Twitch *TwitchStreams
+	Strims      *StrimsStreams
+	Twitch      *TwitchStreams
+	LastFetched time.Time
 }
 
 func (bg *BGClient) GetLiveStreams(refreshFollows bool) error {
@@ -57,5 +59,7 @@ func (bg *BGClient) GetLiveStreams(refreshFollows bool) error {
 	} else {
 		bg.streams.Strims = newStrimsStreams
 	}
+
+	bg.streams.LastFetched = time.Now()
 	return nil
 }

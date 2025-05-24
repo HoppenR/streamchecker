@@ -253,6 +253,7 @@ func (bg *BGClient) serveData() {
 		enc := gob.NewEncoder(w)
 		enc.Encode(&bg.streams.Twitch)
 		enc.Encode(&bg.streams.Strims)
+		enc.Encode(&bg.streams.LastFetched)
 	})
 
 	mux.HandleFunc("POST /stream-data", func(w http.ResponseWriter, r *http.Request) {
@@ -286,8 +287,9 @@ func (bg *BGClient) serveData() {
 
 func GetServerData(address string) (*Streams, error) {
 	streams := &Streams{
-		Strims: new(StrimsStreams),
-		Twitch: new(TwitchStreams),
+		Strims:      new(StrimsStreams),
+		Twitch:      new(TwitchStreams),
+		LastFetched: time.Time{},
 	}
 	// Don't follow redirects, but forward them to the user later
 	client := &http.Client{
@@ -343,6 +345,7 @@ func GetServerData(address string) (*Streams, error) {
 					dec := gob.NewDecoder(resp.Body)
 					dec.Decode(&streams.Twitch)
 					dec.Decode(&streams.Strims)
+					dec.Decode(&streams.LastFetched)
 					return streams, nil
 				} else {
 					log.Printf("Got statuscode %d\n", resp.StatusCode)
@@ -356,6 +359,7 @@ func GetServerData(address string) (*Streams, error) {
 		dec := gob.NewDecoder(resp.Body)
 		dec.Decode(&streams.Twitch)
 		dec.Decode(&streams.Strims)
+		dec.Decode(&streams.LastFetched)
 		return streams, nil
 	}
 	return nil, fmt.Errorf("getServerData status: %d", resp.StatusCode)
