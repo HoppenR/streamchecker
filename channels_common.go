@@ -19,19 +19,21 @@ func (bg *BGClient) GetLiveStreams(refreshFollows bool) error {
 	// Twitch
 	if bg.follows == nil || refreshFollows {
 		if bg.authData.userAccessToken != nil && !bg.authData.userAccessToken.IsExpired(bg.timer) {
-			bg.follows, err = GetTwitchFollows(bg.authData.userAccessToken.AccessToken, bg.authData.clientID, bg.authData.userID)
+			newFollows := new(twitchFollows)
+			newFollows, err = GetTwitchFollows(bg.authData.userAccessToken.AccessToken, bg.authData.clientID, bg.authData.userID)
 			if errors.Is(err, context.DeadlineExceeded) {
 				log.Println("WARN: Get twitch follows timed out")
 			} else if errors.Is(err, ErrUnauthorized) {
 				fmt.Println("WARN: Unauthorized response while getting follows")
+				bg.authData.userAccessToken = nil
 			} else if err != nil {
-				log.Println(bg.authData.userAccessToken == nil)
 				return err
 			}
+			bg.follows = newFollows
 		}
 
 		if bg.follows == nil {
-			log.Println("WARN: No follows obtained, no user access token")
+			log.Println("WARN: No follows obtained")
 			return ErrFollowsUnavailable
 		}
 	}

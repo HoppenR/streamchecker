@@ -77,13 +77,6 @@ func (ad *AuthData) SetClientSecret(clientSecret string) *AuthData {
 	return ad
 }
 
-// func (ad *AuthData) SetUserAccessToken(accessToken string) *AuthData {
-// 	if ad.userAccessToken == nil {
-// 		ad.userAccessToken = accessToken
-// 	}
-// 	return ad
-// }
-
 func (ad *AuthData) SetUserName(userName string) *AuthData {
 	if ad.userName == "" {
 		ad.userName = userName
@@ -219,7 +212,7 @@ func (ad *AuthData) fetchAppAccessToken() error {
 	return err
 }
 
-func (ad *AuthData) exchangeCodeForToken(authorizationCode string, redirectUrl string) error {
+func (ad *AuthData) exchangeCodeForUserAccessToken(authorizationCode string, redirectUrl string) error {
 	req, err := http.NewRequest("POST", "https://id.twitch.tv/oauth2/token", nil)
 	if err != nil {
 		return err
@@ -280,7 +273,6 @@ func (ad *AuthData) refreshUserAccessToken() error {
 	if err != nil {
 		return err
 	}
-
 	err = json.Unmarshal(jsonBody, &ad.userAccessToken)
 	ad.userAccessToken.IssuedAt = time.Now()
 	return err
@@ -327,6 +319,5 @@ func (ad *AuthData) readCache(fileName string, v any) error {
 	if len(data) == 0 {
 		return errors.New("no content read from " + fileName + " file")
 	}
-
 	return json.Unmarshal(data, v)
 }

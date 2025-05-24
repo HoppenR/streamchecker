@@ -273,7 +273,7 @@ func (bg *BGClient) serveData() {
 		log.Println("Got oauth code")
 		w.Write([]byte("Authentication successful! You can now close this page."))
 
-		err := bg.authData.exchangeCodeForToken(accessCode, bg.redirectUrl)
+		err := bg.authData.exchangeCodeForUserAccessToken(accessCode, bg.redirectUrl)
 		if err != nil {
 			log.Println("ERROR: exchanging code for token" + err.Error())
 			return

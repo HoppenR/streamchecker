@@ -70,7 +70,7 @@ import (
 func main() {
 	ADDR := "http://192.168.0.44:8181"
 	// Or the externally hosted address:
-	// ADDR := "https://example.com/oauth-callback"
+	// ADDR := "https://example.com/stream-data"
 	streams, err := sc.GetServerData(ADDR)
 }
 ```
