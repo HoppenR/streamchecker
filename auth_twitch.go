@@ -3,6 +3,7 @@ package streamchecker
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -248,13 +249,11 @@ func (ad *AuthData) refreshUserAccessToken() error {
 	if err != nil {
 		return err
 	}
-	req.Header.Add("Authorization", "Bearer "+ad.appAccessToken.AccessToken)
-	req.Header.Add("Client-Id", ad.clientID)
 
 	query := make(url.Values)
 	query.Add("client_id", ad.clientID)
 	query.Add("client_secret", ad.clientSecret)
-	query.Add("grant_type", "refresh_code")
+	query.Add("grant_type", "refresh_token")
 	query.Add("refresh_token", ad.userAccessToken.RefreshToken)
 	req.URL.RawQuery = query.Encode()
 
@@ -273,6 +272,7 @@ func (ad *AuthData) refreshUserAccessToken() error {
 	if err != nil {
 		return err
 	}
+	fmt.Println("REFRESH CONTENT", jsonBody)
 	err = json.Unmarshal(jsonBody, &ad.userAccessToken)
 	ad.userAccessToken.IssuedAt = time.Now()
 	return err

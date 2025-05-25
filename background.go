@@ -154,6 +154,7 @@ func (bg *BGClient) check(refreshFollows bool) error {
 		bg.authData.fetchAppAccessToken()
 	}
 	if bg.authData.userAccessToken != nil && bg.authData.userAccessToken.IsExpired(bg.timer) {
+		fmt.Println("Attempting to refresh user access token...")
 		err = bg.authData.refreshUserAccessToken()
 		if errors.Is(err, ErrUnauthorized) {
 			fmt.Println("WARN: Could not refresh user access token")
