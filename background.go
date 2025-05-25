@@ -1,6 +1,7 @@
 package streamchecker
 
 import (
+	"context"
 	"encoding/gob"
 	"errors"
 	"fmt"
@@ -287,83 +288,79 @@ func (bg *BGClient) serveData() {
 	bg.srv.ListenAndServe()
 }
 
-func GetServerData(address string) (*Streams, error) {
-	streams := &Streams{
-		Strims:          new(StrimsStreams),
-		Twitch:          new(TwitchStreams),
-		LastFetched:     time.Time{},
-		RefreshInterval: time.Duration(0),
-	}
-	// Don't follow redirects, but forward them to the user later
-	client := &http.Client{
+var ErrAuthPending = errors.New("Authentication is pending")
+
+func GetServerData(ctx context.Context, address string) (*Streams, error) {
+	var noRedirectClient = &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
+		Timeout: time.Second * 5,
 	}
+	var retryLimit = 50
+	var retryWait = 3 * time.Second
 
-	var err error
-	var req *http.Request
-	req, err = http.NewRequest("GET", address, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Add("Content-Type", "application/octet-stream")
-
-	var resp *http.Response
-	resp, err = client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	var retryCount = 0
-	var retryLimit = 100
-	var retryWait = 5 * time.Second
-	switch resp.StatusCode {
-	// We got a redirect to the authentication page, open in browser
-	case http.StatusFound:
-		location := resp.Header.Get("Location")
-		if location != "" {
-			var relURL *url.URL
-			relURL, err = url.Parse(location)
-			if err != nil {
-				return nil, err
-			}
-
-			var absoluteURL *url.URL
-			absoluteURL = resp.Request.URL.ResolveReference(relURL)
-			fmt.Printf("Attempting to authenticate at %s before retrying\n", absoluteURL.String())
-			exec.Command("xdg-open", absoluteURL.String()).Run()
-			for retryCount < retryLimit {
-				retryCount++
-				fmt.Printf("WARN: waiting for user to authenticate\n")
-				time.Sleep(retryWait)
-				resp, err = client.Do(req)
-				if err != nil {
-					fmt.Printf("WARN: %s retrying...\n", err)
-					continue
-				}
-				if resp.StatusCode == http.StatusOK {
-					dec := gob.NewDecoder(resp.Body)
-					err = dec.Decode(&streams)
-					if err != nil {
-						return nil, err
-					}
-					return streams, nil
-				} else {
-					fmt.Printf("Got statuscode %d\n", resp.StatusCode)
-				}
-			}
-			return streams, nil
+	for retryCount := range retryLimit {
+		req, err := http.NewRequestWithContext(ctx, "GET", address, nil)
+		if err != nil {
+			return nil, err
 		}
-		return nil, errors.New("empty redirect")
-	// Got the stream data
+		req.Header.Add("Content-Type", "application/octet-stream")
+
+		resp, err := noRedirectClient.Do(req)
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return nil, err
+		} else if err != nil {
+			fmt.Printf("WARN: %s, retrying in %s (%d / %d)\n", err, retryWait, retryCount, retryLimit)
+			continue
+		}
+
+		var streams *Streams
+		streams, err = handleServerResponse(resp)
+		if errors.Is(err, ErrAuthPending) {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(retryWait):
+				continue
+			}
+		} else if err != nil {
+			return nil, err
+		}
+		return streams, nil
+	}
+	return nil, fmt.Errorf("authentication failed after %d retries", retryLimit)
+}
+
+func handleServerResponse(resp *http.Response) (*Streams, error) {
+	var err error
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
 	case http.StatusOK:
+		streams := new(Streams)
 		dec := gob.NewDecoder(resp.Body)
-		err = dec.Decode(&streams)
+		err = dec.Decode(streams)
 		if err != nil {
 			return nil, fmt.Errorf("gob decode failed: %w", err)
 		}
 		return streams, nil
+	case http.StatusFound:
+		var location string = resp.Header.Get("Location")
+		if location == "" {
+			err = errors.New("empty redirect")
+		}
+		var relURL *url.URL
+		relURL, err = url.Parse(location)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse redirect location: %w", err)
+		}
+		var absoluteURL *url.URL
+		absoluteURL = resp.Request.URL.ResolveReference(relURL)
+		fmt.Printf("Attempting to authenticate at %s before retrying\n", absoluteURL.String())
+		exec.Command("xdg-open", absoluteURL.String()).Run()
+		return nil, ErrAuthPending
+	default:
+		return nil, fmt.Errorf("GetServerData status: %d", resp.StatusCode)
 	}
-	return nil, fmt.Errorf("getServerData status: %d", resp.StatusCode)
 }
