@@ -3,7 +3,6 @@ package streamchecker
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -272,7 +271,7 @@ func (ad *AuthData) refreshUserAccessToken() error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("REFRESH CONTENT", jsonBody)
+	// TODO: handle invalid_grant error
 	err = json.Unmarshal(jsonBody, &ad.userAccessToken)
 	ad.userAccessToken.IssuedAt = time.Now()
 	return err

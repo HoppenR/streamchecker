@@ -4,7 +4,6 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -84,6 +83,7 @@ func (bg *BGClient) SetOfflineCallback(f func(StreamData)) *BGClient {
 
 func (bg *BGClient) SetInterval(timer time.Duration) *BGClient {
 	bg.timer = timer
+	bg.streams.RefreshInterval = timer
 	return bg
 }
 
@@ -150,11 +150,11 @@ func (bg *BGClient) check(refreshFollows bool) error {
 	bg.mutex.Lock()
 	defer bg.mutex.Unlock()
 	if bg.authData.appAccessToken == nil || bg.authData.appAccessToken.IsExpired(bg.timer) {
-		fmt.Println("WARN: Expired app access token, refetching")
+		fmt.Println("INFO: Expired app access token, refetching")
 		bg.authData.fetchAppAccessToken()
 	}
 	if bg.authData.userAccessToken != nil && bg.authData.userAccessToken.IsExpired(bg.timer) {
-		fmt.Println("Attempting to refresh user access token...")
+		fmt.Println("INFO: Expired user access token, refetching")
 		err = bg.authData.refreshUserAccessToken()
 		if errors.Is(err, ErrUnauthorized) {
 			fmt.Println("WARN: Could not refresh user access token")
@@ -230,7 +230,7 @@ func (bg *BGClient) serveData() {
 			return
 		}
 
-		log.Println(
+		fmt.Println(
 			"Serving data to IP: ",
 			r.RemoteAddr,
 			", X-Real-IP: ",
@@ -252,9 +252,11 @@ func (bg *BGClient) serveData() {
 		}
 
 		enc := gob.NewEncoder(w)
-		enc.Encode(&bg.streams.Twitch)
-		enc.Encode(&bg.streams.Strims)
-		enc.Encode(&bg.streams.LastFetched)
+		err := enc.Encode(&bg.streams)
+		if err != nil {
+			http.Error(w, "Could not encode streams", http.StatusInternalServerError)
+			return
+		}
 	})
 
 	mux.HandleFunc("POST /stream-data", func(w http.ResponseWriter, r *http.Request) {
@@ -271,12 +273,11 @@ func (bg *BGClient) serveData() {
 			http.Error(w, "Access token not found", http.StatusBadRequest)
 			return
 		}
-		log.Println("Got oauth code")
 		w.Write([]byte("Authentication successful! You can now close this page."))
 
 		err := bg.authData.exchangeCodeForUserAccessToken(accessCode, bg.redirectUrl)
 		if err != nil {
-			log.Println("ERROR: exchanging code for token" + err.Error())
+			fmt.Println("ERROR: exchanging code for token" + err.Error())
 			return
 		}
 		bg.ForceCheck <- true
@@ -288,9 +289,10 @@ func (bg *BGClient) serveData() {
 
 func GetServerData(address string) (*Streams, error) {
 	streams := &Streams{
-		Strims:      new(StrimsStreams),
-		Twitch:      new(TwitchStreams),
-		LastFetched: time.Time{},
+		Strims:          new(StrimsStreams),
+		Twitch:          new(TwitchStreams),
+		LastFetched:     time.Time{},
+		RefreshInterval: time.Duration(0),
 	}
 	// Don't follow redirects, but forward them to the user later
 	client := &http.Client{
@@ -329,27 +331,26 @@ func GetServerData(address string) (*Streams, error) {
 
 			var absoluteURL *url.URL
 			absoluteURL = resp.Request.URL.ResolveReference(relURL)
-			log.Printf("Attempting to authenticate at %s before retrying\n", absoluteURL.String())
+			fmt.Printf("Attempting to authenticate at %s before retrying\n", absoluteURL.String())
 			exec.Command("xdg-open", absoluteURL.String()).Run()
 			for retryCount < retryLimit {
 				retryCount++
-				log.Printf(
-					"WARN: waiting for user to authenticate\n",
-				)
+				fmt.Printf("WARN: waiting for user to authenticate\n")
 				time.Sleep(retryWait)
 				resp, err = client.Do(req)
 				if err != nil {
-					log.Printf("WARN: %s retrying...\n", err)
+					fmt.Printf("WARN: %s retrying...\n", err)
 					continue
 				}
 				if resp.StatusCode == http.StatusOK {
 					dec := gob.NewDecoder(resp.Body)
-					dec.Decode(&streams.Twitch)
-					dec.Decode(&streams.Strims)
-					dec.Decode(&streams.LastFetched)
+					err = dec.Decode(&streams)
+					if err != nil {
+						return nil, err
+					}
 					return streams, nil
 				} else {
-					log.Printf("Got statuscode %d\n", resp.StatusCode)
+					fmt.Printf("Got statuscode %d\n", resp.StatusCode)
 				}
 			}
 			return streams, nil
@@ -358,9 +359,10 @@ func GetServerData(address string) (*Streams, error) {
 	// Got the stream data
 	case http.StatusOK:
 		dec := gob.NewDecoder(resp.Body)
-		dec.Decode(&streams.Twitch)
-		dec.Decode(&streams.Strims)
-		dec.Decode(&streams.LastFetched)
+		err = dec.Decode(&streams)
+		if err != nil {
+			return nil, fmt.Errorf("gob decode failed: %w", err)
+		}
 		return streams, nil
 	}
 	return nil, fmt.Errorf("getServerData status: %d", resp.StatusCode)

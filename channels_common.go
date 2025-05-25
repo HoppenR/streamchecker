@@ -4,14 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 )
 
 type Streams struct {
-	Strims      *StrimsStreams
-	Twitch      *TwitchStreams
-	LastFetched time.Time
+	Strims          *StrimsStreams
+	Twitch          *TwitchStreams
+	LastFetched     time.Time
+	RefreshInterval time.Duration
 }
 
 func (bg *BGClient) GetLiveStreams(refreshFollows bool) error {
@@ -22,7 +22,7 @@ func (bg *BGClient) GetLiveStreams(refreshFollows bool) error {
 			newFollows := new(twitchFollows)
 			newFollows, err = GetTwitchFollows(bg.authData.userAccessToken.AccessToken, bg.authData.clientID, bg.authData.userID)
 			if errors.Is(err, context.DeadlineExceeded) {
-				log.Println("WARN: Get twitch follows timed out")
+				fmt.Println("WARN: Get twitch follows timed out")
 			} else if errors.Is(err, ErrUnauthorized) {
 				fmt.Println("WARN: Unauthorized response while getting follows")
 				bg.authData.userAccessToken = nil
@@ -33,7 +33,7 @@ func (bg *BGClient) GetLiveStreams(refreshFollows bool) error {
 		}
 
 		if bg.follows == nil {
-			log.Println("WARN: No follows obtained")
+			fmt.Println("WARN: No follows obtained")
 			return ErrFollowsUnavailable
 		}
 	}
@@ -41,7 +41,7 @@ func (bg *BGClient) GetLiveStreams(refreshFollows bool) error {
 	var newTwitchStreams *TwitchStreams
 	newTwitchStreams, err = GetLiveTwitchStreams(bg.authData.appAccessToken.AccessToken, bg.authData.clientID, bg.follows)
 	if errors.Is(err, context.DeadlineExceeded) {
-		log.Println("WARN: Get twitch streams timed out")
+		fmt.Println("WARN: Get twitch streams timed out")
 	} else if errors.Is(err, ErrUnauthorized) {
 		fmt.Println("WARN: Unauthorized response while getting streams")
 		bg.authData.appAccessToken = nil
@@ -55,7 +55,7 @@ func (bg *BGClient) GetLiveStreams(refreshFollows bool) error {
 	var newStrimsStreams *StrimsStreams
 	newStrimsStreams, err = GetLiveStrimsStreams()
 	if errors.Is(err, context.DeadlineExceeded) {
-		log.Println("WARN: Get strims streams timed out")
+		fmt.Println("WARN: Get strims streams timed out")
 	} else if err != nil {
 		return err
 	} else {
