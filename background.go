@@ -340,7 +340,6 @@ func handleServerResponse(resp *http.Response) (*Streams, error) {
 		}
 		var absoluteURL *url.URL
 		absoluteURL = resp.Request.URL.ResolveReference(relURL)
-		fmt.Printf("Attempting to authenticate at %s before retrying\n", absoluteURL.String())
 		exec.Command("xdg-open", absoluteURL.String()).Run()
 		return nil, ErrAuthPending
 	default:
