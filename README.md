@@ -48,7 +48,7 @@ func main() {
     ad.SetClientID(ClientID).
         SetClientSecret(ClientSecret).
         SetUserName("MyUsername")
-    sc.NewBG().
+    sc.NewServer().
         SetAuthData(ad).
 	SetRedirect("https://example.com/oauth-callback").
         SetInterval(5 * time.Minute).

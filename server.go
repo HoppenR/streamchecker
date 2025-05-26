@@ -43,7 +43,7 @@ func NewServer() *Server {
 	return &Server{
 		forceCheck: make(chan bool),
 		lives:      make(map[string]StreamData),
-		logger:     slog.New(slog.NewTextHandler(os.Stdout, nil)),
+		logger:     slog.New(slog.NewJSONHandler(os.Stdout, nil)),
 		streams: &Streams{
 			Strims: new(StrimsStreams),
 			Twitch: new(TwitchStreams),
@@ -271,7 +271,7 @@ func (bg *Server) serveData() {
 
 		err := bg.authData.exchangeCodeForUserAccessToken(accessCode, bg.redirectUri)
 		if err != nil {
-			bg.logger.Error("could not exchange code for token", "err", err)
+			bg.logger.Warn("could not exchange code for token", "err", err)
 			return
 		}
 		bg.forceCheck <- true
