@@ -295,41 +295,24 @@ func GetServerData(ctx context.Context, address string) (*Streams, error) {
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
-		Timeout: time.Second * 5,
 	}
-	var retryLimit = 50
-	var retryWait = 3 * time.Second
-
-	for retryCount := range retryLimit {
-		req, err := http.NewRequestWithContext(ctx, "GET", address, nil)
-		if err != nil {
-			return nil, err
-		}
-		req.Header.Add("Content-Type", "application/octet-stream")
-
-		resp, err := noRedirectClient.Do(req)
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return nil, err
-		} else if err != nil {
-			fmt.Printf("WARN: %s, retrying in %s (%d / %d)\n", err, retryWait, retryCount, retryLimit)
-			continue
-		}
-
-		var streams *Streams
-		streams, err = handleServerResponse(resp)
-		if errors.Is(err, ErrAuthPending) {
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-time.After(retryWait):
-				continue
-			}
-		} else if err != nil {
-			return nil, err
-		}
-		return streams, nil
+	req, err := http.NewRequestWithContext(ctx, "GET", address, nil)
+	if err != nil {
+		return nil, err
 	}
-	return nil, fmt.Errorf("authentication failed after %d retries", retryLimit)
+	req.Header.Add("Content-Type", "application/octet-stream")
+
+	resp, err := noRedirectClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	var streams *Streams
+	streams, err = handleServerResponse(resp)
+	if err != nil {
+		return nil, err
+	}
+	return streams, nil
 }
 
 func handleServerResponse(resp *http.Response) (*Streams, error) {
