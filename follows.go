@@ -2,7 +2,6 @@ package streamchecker
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -51,7 +50,7 @@ func getTwitchFollowsPart(userAccessToken, clientID, userID, pagCursor string) (
 	if resp.StatusCode == http.StatusUnauthorized {
 		return nil, ErrUnauthorized
 	} else if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("got responsecode: %d have sent %s %s", resp.StatusCode, req.URL.String(), req.Header)
+		return nil, err
 	}
 	defer resp.Body.Close()
 

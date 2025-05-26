@@ -3,7 +3,6 @@ package streamchecker
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 )
 
@@ -14,7 +13,7 @@ type Streams struct {
 	RefreshInterval time.Duration
 }
 
-func (bg *BGClient) GetLiveStreams(refreshFollows bool) error {
+func (bg *Server) GetLiveStreams(refreshFollows bool) error {
 	var err error
 	// Twitch
 	if bg.follows == nil || refreshFollows {
@@ -22,9 +21,9 @@ func (bg *BGClient) GetLiveStreams(refreshFollows bool) error {
 			newFollows := new(twitchFollows)
 			newFollows, err = GetTwitchFollows(bg.authData.userAccessToken.AccessToken, bg.authData.clientID, bg.authData.userID)
 			if errors.Is(err, context.DeadlineExceeded) {
-				fmt.Println("WARN: Get twitch follows timed out")
+				bg.logger.Warn("timed out getting twitch follows")
 			} else if errors.Is(err, ErrUnauthorized) {
-				fmt.Println("WARN: Unauthorized response while getting follows")
+				bg.logger.Warn("unauthorized getting follows")
 				bg.authData.userAccessToken = nil
 			} else if err != nil {
 				return err
@@ -33,7 +32,7 @@ func (bg *BGClient) GetLiveStreams(refreshFollows bool) error {
 		}
 
 		if bg.follows == nil {
-			fmt.Println("WARN: No follows obtained")
+			bg.logger.Warn("no follows obtained")
 			return ErrFollowsUnavailable
 		}
 	}
@@ -41,9 +40,9 @@ func (bg *BGClient) GetLiveStreams(refreshFollows bool) error {
 	var newTwitchStreams *TwitchStreams
 	newTwitchStreams, err = GetLiveTwitchStreams(bg.authData.appAccessToken.AccessToken, bg.authData.clientID, bg.follows)
 	if errors.Is(err, context.DeadlineExceeded) {
-		fmt.Println("WARN: Get twitch streams timed out")
+		bg.logger.Warn("timed out getting twitch follows")
 	} else if errors.Is(err, ErrUnauthorized) {
-		fmt.Println("WARN: Unauthorized response while getting streams")
+		bg.logger.Warn("unauthorized getting twitch streams")
 		bg.authData.appAccessToken = nil
 	} else if err != nil {
 		return err
@@ -55,7 +54,7 @@ func (bg *BGClient) GetLiveStreams(refreshFollows bool) error {
 	var newStrimsStreams *StrimsStreams
 	newStrimsStreams, err = GetLiveStrimsStreams()
 	if errors.Is(err, context.DeadlineExceeded) {
-		fmt.Println("WARN: Get strims streams timed out")
+		bg.logger.Warn("timed out getting strims streams")
 	} else if err != nil {
 		return err
 	} else {

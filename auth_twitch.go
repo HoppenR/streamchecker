@@ -271,7 +271,6 @@ func (ad *AuthData) refreshUserAccessToken() error {
 	if err != nil {
 		return err
 	}
-	// TODO: handle invalid_grant error
 	err = json.Unmarshal(jsonBody, &ad.userAccessToken)
 	ad.userAccessToken.IssuedAt = time.Now()
 	return err
