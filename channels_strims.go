@@ -36,6 +36,10 @@ func (lhs *StrimsStreamData) GetService() string {
 	return lhs.Service
 }
 
+func (lhs *StrimsStreamData) IsFollowed() bool {
+	return false
+}
+
 func (ss *StrimsStreams) Less(i, j int) bool {
 	return ss.Data[i].Rustlers < ss.Data[j].Rustlers
 }

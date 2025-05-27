@@ -37,7 +37,11 @@ func (lhs *TwitchStreamData) GetName() string {
 }
 
 func (lhs *TwitchStreamData) GetService() string {
-	return "twitch-followed"
+	return "twitch"
+}
+
+func (lhs *TwitchStreamData) IsFollowed() bool {
+	return true
 }
 
 func (lhs *TwitchStreams) update(rhs *TwitchStreams) {

@@ -35,6 +35,7 @@ type Server struct {
 type StreamData interface {
 	GetName() string
 	GetService() string
+	IsFollowed() bool
 }
 
 var ErrFollowsUnavailable = errors.New("No user access token and no follows obtained")
@@ -163,17 +164,19 @@ func (bg *Server) check(refreshFollows bool) error {
 		return err
 	}
 
-	if bg.onLive == nil && bg.onOffline == nil {
-		return nil
+	if bg.onLive != nil || bg.onOffline != nil {
+		bg.doStreamStatusCallbacks()
 	}
+	return nil
+}
 
-	var newLives map[string]StreamData
-	newLives = make(map[string]StreamData)
-	for i, v := range bg.streams.Twitch.Data {
-		newLives[strings.ToLower(v.UserName)] = &bg.streams.Twitch.Data[i]
-	}
+func (bg *Server) doStreamStatusCallbacks() {
+	newLives := make(map[string]StreamData)
 	for i, v := range bg.streams.Strims.Data {
 		newLives[strings.ToLower(v.Channel)] = &bg.streams.Strims.Data[i]
+	}
+	for i, v := range bg.streams.Twitch.Data {
+		newLives[strings.ToLower(v.UserName)] = &bg.streams.Twitch.Data[i]
 	}
 	if bg.hasInitStreams {
 		if bg.onLive != nil {
@@ -194,7 +197,6 @@ func (bg *Server) check(refreshFollows bool) error {
 		bg.hasInitStreams = true
 	}
 	bg.lives = newLives
-	return nil
 }
 
 func (bg *Server) serveData() {
