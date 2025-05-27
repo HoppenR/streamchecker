@@ -51,14 +51,16 @@ func (bg *Server) GetLiveStreams(refreshFollows bool) error {
 	}
 
 	// Strims
-	var newStrimsStreams *StrimsStreams
-	newStrimsStreams, err = GetLiveStrimsStreams()
-	if errors.Is(err, context.DeadlineExceeded) {
-		bg.logger.Warn("timed out getting strims streams")
-	} else if err != nil {
-		return err
-	} else {
-		bg.streams.Strims = newStrimsStreams
+	if bg.strimsEnabled {
+		var newStrimsStreams *StrimsStreams
+		newStrimsStreams, err = GetLiveStrimsStreams()
+		if errors.Is(err, context.DeadlineExceeded) {
+			bg.logger.Warn("timed out getting strims streams")
+		} else if err != nil {
+			return err
+		} else {
+			bg.streams.Strims = newStrimsStreams
+		}
 	}
 
 	bg.streams.LastFetched = time.Now()

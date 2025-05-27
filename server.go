@@ -28,6 +28,7 @@ type Server struct {
 	streams        *Streams
 	timer          time.Duration
 	userName       string
+	strimsEnabled  bool
 
 	forceCheck chan bool
 }
@@ -85,6 +86,11 @@ func (bg *Server) SetOfflineCallback(f func(StreamData)) *Server {
 
 func (bg *Server) SetRedirect(redirectUri string) *Server {
 	bg.redirectUri = redirectUri
+	return bg
+}
+
+func (bg *Server) EnableStrims(enable bool) *Server {
+	bg.strimsEnabled = enable
 	return bg
 }
 
