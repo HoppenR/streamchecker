@@ -1,4 +1,4 @@
-module github.com/HoppenR/streamchecker
+module github.com/HoppenR/libstreams
 
 go 1.23.0
 

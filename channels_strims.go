@@ -1,4 +1,4 @@
-package streamchecker
+package libstreams
 
 import (
 	"context"
