@@ -12,11 +12,11 @@ import (
 )
 
 type AuthData struct {
-	appAccessToken  *AppAccessToken
+	AppAccessToken  *AppAccessToken
+	UserAccessToken *UserAccessToken
 	cacheFolder     string
 	clientID        string
 	clientSecret    string
-	userAccessToken *UserAccessToken
 	userID          string
 	userName        string
 }
@@ -88,24 +88,24 @@ func (ad *AuthData) GetCachedData() error {
 	if ad.cacheFolder == "" {
 		return errors.New("cache folder not set")
 	}
-	if ad.appAccessToken == nil {
+	if ad.AppAccessToken == nil {
 		var appAccessToken AppAccessToken
 		err := ad.readCache("cachedtoken", &appAccessToken)
 		if err != nil {
 			return err
 		}
 		if !appAccessToken.IsExpired(time.Duration(0)) {
-			ad.appAccessToken = &appAccessToken
+			ad.AppAccessToken = &appAccessToken
 		}
 	}
-	if ad.userAccessToken == nil {
+	if ad.UserAccessToken == nil {
 		var userAccessToken UserAccessToken
 		err := ad.readCache("cacheduseraccesstoken", &userAccessToken)
 		if err != nil {
 			return err
 		}
 		if !userAccessToken.IsExpired(time.Duration(0)) {
-			ad.userAccessToken = &userAccessToken
+			ad.UserAccessToken = &userAccessToken
 		}
 	}
 	if ad.userID == "" {
@@ -120,7 +120,7 @@ func (ad *AuthData) GetCachedData() error {
 }
 
 func (ad *AuthData) GetAppAccessToken() error {
-	if ad.appAccessToken == nil || ad.appAccessToken.IsExpired(time.Duration(0)) {
+	if ad.AppAccessToken == nil || ad.AppAccessToken.IsExpired(time.Duration(0)) {
 		err := ad.FetchAppAccessToken()
 		if err != nil {
 			return err
@@ -143,14 +143,14 @@ func (ad *AuthData) SaveCachedData() error {
 	if ad.cacheFolder == "" {
 		return errors.New("cache folder not set")
 	}
-	if ad.appAccessToken != nil {
-		err := ad.writeCache("cachedtoken", ad.appAccessToken)
+	if ad.AppAccessToken != nil {
+		err := ad.writeCache("cachedtoken", ad.AppAccessToken)
 		if err != nil {
 			return err
 		}
 	}
-	if ad.userAccessToken != nil {
-		err := ad.writeCache("cacheduseraccesstoken", ad.userAccessToken)
+	if ad.UserAccessToken != nil {
+		err := ad.writeCache("cacheduseraccesstoken", ad.UserAccessToken)
 		if err != nil {
 			return err
 		}
@@ -207,8 +207,8 @@ func (ad *AuthData) FetchAppAccessToken() error {
 	if err != nil {
 		return err
 	}
-	err = json.Unmarshal(jsonBody, &ad.appAccessToken)
-	ad.appAccessToken.IssuedAt = time.Now()
+	err = json.Unmarshal(jsonBody, &ad.AppAccessToken)
+	ad.AppAccessToken.IssuedAt = time.Now()
 	return err
 }
 
@@ -238,8 +238,8 @@ func (ad *AuthData) ExchangeCodeForUserAccessToken(authorizationCode string, red
 	if err != nil {
 		return err
 	}
-	err = json.Unmarshal(jsonBody, &ad.userAccessToken)
-	ad.userAccessToken.IssuedAt = time.Now()
+	err = json.Unmarshal(jsonBody, &ad.UserAccessToken)
+	ad.UserAccessToken.IssuedAt = time.Now()
 	return err
 }
 
@@ -253,7 +253,7 @@ func (ad *AuthData) RefreshUserAccessToken() error {
 	query.Add("client_id", ad.clientID)
 	query.Add("client_secret", ad.clientSecret)
 	query.Add("grant_type", "refresh_token")
-	query.Add("refresh_token", ad.userAccessToken.RefreshToken)
+	query.Add("refresh_token", ad.UserAccessToken.RefreshToken)
 	req.URL.RawQuery = query.Encode()
 
 	var resp *http.Response
@@ -271,8 +271,8 @@ func (ad *AuthData) RefreshUserAccessToken() error {
 	if err != nil {
 		return err
 	}
-	err = json.Unmarshal(jsonBody, &ad.userAccessToken)
-	ad.userAccessToken.IssuedAt = time.Now()
+	err = json.Unmarshal(jsonBody, &ad.UserAccessToken)
+	ad.UserAccessToken.IssuedAt = time.Now()
 	return err
 }
 
@@ -281,7 +281,7 @@ func (ad *AuthData) FetchUserID() error {
 	if err != nil {
 		return err
 	}
-	req.Header.Add("Authorization", "Bearer "+ad.appAccessToken.AccessToken)
+	req.Header.Add("Authorization", "Bearer "+ad.AppAccessToken.AccessToken)
 	req.Header.Add("Client-Id", ad.clientID)
 	query := make(url.Values)
 	query.Add("login", ad.userName)
