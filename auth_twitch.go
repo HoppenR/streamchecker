@@ -119,9 +119,9 @@ func (ad *AuthData) GetCachedData() error {
 	return nil
 }
 
-func (ad *AuthData) getAppAccessToken() error {
+func (ad *AuthData) GetAppAccessToken() error {
 	if ad.appAccessToken == nil || ad.appAccessToken.IsExpired(time.Duration(0)) {
-		err := ad.fetchAppAccessToken()
+		err := ad.FetchAppAccessToken()
 		if err != nil {
 			return err
 		}
@@ -129,9 +129,9 @@ func (ad *AuthData) getAppAccessToken() error {
 	return nil
 }
 
-func (ad *AuthData) getUserID() error {
+func (ad *AuthData) GetUserID() error {
 	if ad.userID == "" {
-		err := ad.fetchUserID()
+		err := ad.FetchUserID()
 		if err != nil {
 			return err
 		}
@@ -186,7 +186,7 @@ func (ad *AuthData) writeCache(fileName string, data any) error {
 	return nil
 }
 
-func (ad *AuthData) fetchAppAccessToken() error {
+func (ad *AuthData) FetchAppAccessToken() error {
 	req, err := http.NewRequest("POST", "https://id.twitch.tv/oauth2/token", nil)
 	if err != nil {
 		return err
@@ -212,7 +212,7 @@ func (ad *AuthData) fetchAppAccessToken() error {
 	return err
 }
 
-func (ad *AuthData) exchangeCodeForUserAccessToken(authorizationCode string, redirectUrl string) error {
+func (ad *AuthData) ExchangeCodeForUserAccessToken(authorizationCode string, redirectUrl string) error {
 	req, err := http.NewRequest("POST", "https://id.twitch.tv/oauth2/token", nil)
 	if err != nil {
 		return err
@@ -243,7 +243,7 @@ func (ad *AuthData) exchangeCodeForUserAccessToken(authorizationCode string, red
 	return err
 }
 
-func (ad *AuthData) refreshUserAccessToken() error {
+func (ad *AuthData) RefreshUserAccessToken() error {
 	req, err := http.NewRequest("POST", "https://id.twitch.tv/oauth2/token", nil)
 	if err != nil {
 		return err
@@ -276,7 +276,7 @@ func (ad *AuthData) refreshUserAccessToken() error {
 	return err
 }
 
-func (ad *AuthData) fetchUserID() error {
+func (ad *AuthData) FetchUserID() error {
 	req, err := http.NewRequest("GET", "https://api.twitch.tv/helix/users", nil)
 	if err != nil {
 		return err

@@ -60,7 +60,7 @@ func (ts *TwitchStreams) Swap(i, j int) {
 	ts.Data[i], ts.Data[j] = ts.Data[j], ts.Data[i]
 }
 
-func getLiveTwitchStreamsPart(token, clientID string, twitchFollows *twitchFollows, first int) ([]byte, error) {
+func getLiveTwitchStreamsPart(token, clientID string, twitchFollows *TwitchFollows, first int) ([]byte, error) {
 	req, err := http.NewRequest("GET", "https://api.twitch.tv/helix/streams", nil)
 	if err != nil {
 		return nil, err
@@ -95,7 +95,7 @@ func getLiveTwitchStreamsPart(token, clientID string, twitchFollows *twitchFollo
 }
 
 // Takes follow IDs and returns which ones are live
-func GetLiveTwitchStreams(token, clientID string, twitchFollows *twitchFollows) (*TwitchStreams, error) {
+func GetLiveTwitchStreams(token, clientID string, twitchFollows *TwitchFollows) (*TwitchStreams, error) {
 	jsonBody, err := getLiveTwitchStreamsPart(token, clientID, twitchFollows, 0)
 	if err != nil {
 		return nil, err

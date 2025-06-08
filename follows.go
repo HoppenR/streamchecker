@@ -7,22 +7,22 @@ import (
 	"net/url"
 )
 
-type twitchFollows struct {
-	Data       []twitchFollowID `json:"data"`
-	Pagination followPagination `json:"pagination"`
+type TwitchFollows struct {
+	Data       []TwitchFollowID `json:"data"`
+	Pagination FollowPagination `json:"pagination"`
 	Total      int              `json:"total"`
 }
 
-type twitchFollowID struct {
+type TwitchFollowID struct {
 	BroadcasterID   string `json:"broadcaster_id"`
 	BroadcasterName string `json:"broadcaster_name"`
 }
 
-type followPagination struct {
+type FollowPagination struct {
 	Cursor string `json:"cursor"`
 }
 
-func (lhs *twitchFollows) update(rhs *twitchFollows) {
+func (lhs *TwitchFollows) update(rhs *TwitchFollows) {
 	lhs.Data = append(lhs.Data, rhs.Data...)
 	lhs.Pagination = rhs.Pagination
 }
@@ -63,12 +63,12 @@ func getTwitchFollowsPart(userAccessToken, clientID, userID, pagCursor string) (
 }
 
 // Takes a USER ID and returns all follows
-func GetTwitchFollows(userAccessToken, clientID, userID string) (*twitchFollows, error) {
+func GetTwitchFollows(userAccessToken, clientID, userID string) (*TwitchFollows, error) {
 	jsonBody, err := getTwitchFollowsPart(userAccessToken, clientID, userID, "")
 	if err != nil {
 		return nil, err
 	}
-	follows := new(twitchFollows)
+	follows := new(TwitchFollows)
 	err = json.Unmarshal(jsonBody, &follows)
 	if err != nil {
 		return nil, err
@@ -78,7 +78,7 @@ func GetTwitchFollows(userAccessToken, clientID, userID string) (*twitchFollows,
 		if err != nil {
 			return nil, err
 		}
-		tmpFollows := new(twitchFollows)
+		tmpFollows := new(TwitchFollows)
 		err = json.Unmarshal(jsonBody, &tmpFollows)
 		if err != nil {
 			return nil, err
