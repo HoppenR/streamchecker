@@ -14,10 +14,10 @@ import (
 type AuthData struct {
 	AppAccessToken  *AppAccessToken
 	UserAccessToken *UserAccessToken
+	ClientID        string
+	UserID          string
 	cacheFolder     string
-	clientID        string
 	clientSecret    string
-	userID          string
 	userName        string
 }
 
@@ -64,8 +64,8 @@ func (ad *AuthData) SetCacheFolder(name string) error {
 }
 
 func (ad *AuthData) SetClientID(clientID string) *AuthData {
-	if ad.clientID == "" {
-		ad.clientID = clientID
+	if ad.ClientID == "" {
+		ad.ClientID = clientID
 	}
 	return ad
 }
@@ -108,13 +108,13 @@ func (ad *AuthData) GetCachedData() error {
 			ad.UserAccessToken = &userAccessToken
 		}
 	}
-	if ad.userID == "" {
+	if ad.UserID == "" {
 		var userID string
 		err := ad.readCache("cacheduserid", &userID)
 		if err != nil {
 			return err
 		}
-		ad.userID = userID
+		ad.UserID = userID
 	}
 	return nil
 }
@@ -130,7 +130,7 @@ func (ad *AuthData) GetAppAccessToken() error {
 }
 
 func (ad *AuthData) GetUserID() error {
-	if ad.userID == "" {
+	if ad.UserID == "" {
 		err := ad.FetchUserID()
 		if err != nil {
 			return err
@@ -155,8 +155,8 @@ func (ad *AuthData) SaveCachedData() error {
 			return err
 		}
 	}
-	if ad.userID != "" {
-		err := ad.writeCache("cacheduserid", ad.userID)
+	if ad.UserID != "" {
+		err := ad.writeCache("cacheduserid", ad.UserID)
 		if err != nil {
 			return err
 		}
@@ -191,7 +191,7 @@ func (ad *AuthData) FetchAppAccessToken() error {
 	if err != nil {
 		return err
 	}
-	req.Header.Add("Client-Id", ad.clientID)
+	req.Header.Add("Client-Id", ad.ClientID)
 	query := make(url.Values)
 	query.Add("client_secret", ad.clientSecret)
 	query.Add("grant_type", "client_credentials")
@@ -219,7 +219,7 @@ func (ad *AuthData) ExchangeCodeForUserAccessToken(authorizationCode string, red
 	}
 
 	query := make(url.Values)
-	query.Add("client_id", ad.clientID)
+	query.Add("client_id", ad.ClientID)
 	query.Add("client_secret", ad.clientSecret)
 	query.Add("code", authorizationCode)
 	query.Add("grant_type", "authorization_code")
@@ -250,7 +250,7 @@ func (ad *AuthData) RefreshUserAccessToken() error {
 	}
 
 	query := make(url.Values)
-	query.Add("client_id", ad.clientID)
+	query.Add("client_id", ad.ClientID)
 	query.Add("client_secret", ad.clientSecret)
 	query.Add("grant_type", "refresh_token")
 	query.Add("refresh_token", ad.UserAccessToken.RefreshToken)
@@ -282,7 +282,7 @@ func (ad *AuthData) FetchUserID() error {
 		return err
 	}
 	req.Header.Add("Authorization", "Bearer "+ad.AppAccessToken.AccessToken)
-	req.Header.Add("Client-Id", ad.clientID)
+	req.Header.Add("Client-Id", ad.ClientID)
 	query := make(url.Values)
 	query.Add("login", ad.userName)
 	req.URL.RawQuery = query.Encode()
@@ -304,7 +304,7 @@ func (ad *AuthData) FetchUserID() error {
 	if err != nil {
 		return err
 	}
-	ad.userID = userDatas.Data[0].ID
+	ad.UserID = userDatas.Data[0].ID
 	return nil
 }
 
