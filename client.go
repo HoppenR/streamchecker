@@ -3,14 +3,18 @@ package libstreams
 import (
 	"context"
 	"encoding/gob"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
-	"os/exec"
 )
 
-var ErrAuthPending = errors.New("Authentication is pending")
+type RedirectError struct {
+	Location string
+}
+
+func (re *RedirectError) Error() string {
+	return fmt.Sprintf("redirect to %s", re.Location)
+}
 
 func GetServerData(ctx context.Context, address string) (*Streams, error) {
 	var noRedirectClient = &http.Client{
@@ -60,8 +64,8 @@ func handleServerResponse(resp *http.Response) (*Streams, error) {
 		}
 		var absoluteURL *url.URL
 		absoluteURL = resp.Request.URL.ResolveReference(relURL)
-		exec.Command("xdg-open", absoluteURL.String()).Run()
-		return nil, ErrAuthPending
+		// exec.Command("xdg-open", absoluteURL.String()).Run()
+		return nil, &RedirectError{Location: absoluteURL.String()}
 	default:
 		return nil, fmt.Errorf("status getting streams: %d", resp.StatusCode)
 	}
